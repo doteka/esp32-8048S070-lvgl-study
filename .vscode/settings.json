@@ -1,0 +1,10 @@
+{
+    "idf.adapterTargetName": "esp32s3",
+    "idf.portWin": "COM7",
+    "idf.flashType": "UART",
+    "files.associations": {
+        "ui_helpers.h": "c",
+        "ui.h": "c",
+        "lvgl.h": "c"
+    }
+}
