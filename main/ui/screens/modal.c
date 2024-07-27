@@ -7,8 +7,6 @@
 #include <stdbool.h>
 #include "esp_log.h"
 
-#define MASK_WIDTH 100
-#define MASK_HEIGHT 45
 #define state_row 2
 #define state_col 10
 #define state_check(state) ((state)?"O":"X")

@@ -57,6 +57,9 @@ void ui_Screen2_screen_init(void);
 void ui_Screen1_screen_init(void);
 void modal_Screen_screen_init(void);
 void setup_set_Screen_screen_init(void);
+void tabview_setup_Screen_screen_init(void);
+void tabview_grid_Screen_init(void);
+void simple_card_game_init(void);
 
 lv_obj_t *ui_Screen1;
 lv_obj_t *ui_Button2;
@@ -77,6 +80,9 @@ lv_obj_t *modal_Screen;
 lv_obj_t *state_tabel;
 lv_obj_t *open_modal_btn;
 lv_obj_t *setup_set_Screen;
+lv_obj_t *tabview_setup_Screen;
+lv_obj_t *tabview_grid_Screen;
+lv_obj_t *simple_card_game_Screen;
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
 #if LV_COLOR_DEPTH != 16
@@ -97,9 +103,9 @@ void ui_init(lv_disp_t *disp) {
       disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
       false, LV_FONT_DEFAULT);
   lv_disp_set_theme(disp, theme);
-  setup_set_Screen_screen_init();
+  simple_card_game_init();
   // ui_Screen2_screen_init();
   ui____initial_actions0 = lv_obj_create(NULL);
-  lv_disp_load_scr(setup_set_Screen);
+  lv_disp_load_scr(simple_card_game_Screen);
   // lv_disp_load_scr(ui_Screen2);
 }

@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "main",
-    "project_version":    "1",
+    "project_version":    "295d324-dirty",
     "project_path":       "C:/esp32/esp_idf_lvgl",
     "idf_path":           "C:/esp/v5.1.4/esp-idf",
     "build_dir":          "C:/esp32/esp_idf_lvgl/build",
@@ -835,7 +835,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp_lcd_touch_gt911", "lvgl__lvgl" ],
             "file": "C:/esp32/esp_idf_lvgl/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/esp32/esp_idf_lvgl/main/main.c", "C:/esp32/esp_idf_lvgl/main/ui/ui.c", "C:/esp32/esp_idf_lvgl/main/ui/ui_helpers.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/ui_Screen1.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/ui_Screen2.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/modal.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/setup_set.c" ],
+            "sources": [ "C:/esp32/esp_idf_lvgl/main/main.c", "C:/esp32/esp_idf_lvgl/main/ui/ui.c", "C:/esp32/esp_idf_lvgl/main/ui/ui_helpers.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/ui_Screen1.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/ui_Screen2.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/modal.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/setup_set.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/tabview_setup.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/tabview_grid.c", "C:/esp32/esp_idf_lvgl/main/ui/screens/simple_card_game.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {

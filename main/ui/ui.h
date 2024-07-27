@@ -19,6 +19,9 @@ void ui_Screen1_screen_init(void);
 void ui_Screen2_screen_init(void);
 void modal_Screen_screen_init(void);
 void setup_set_Screen_screen_init(void);
+void tabview_setup_Screen_screen_init(void);
+void tabview_grid_Screen_init(void);
+void simple_card_game_init(void);
 
 extern lv_obj_t *ui_Screen1;
 extern lv_obj_t *ui_Screen2;
@@ -40,6 +43,9 @@ extern lv_obj_t *open_modal_btn;
 // extern lv_obj_t *ui_submit;
 
 extern lv_obj_t *setup_set_Screen;
+extern lv_obj_t *tabview_setup_Screen;
+extern lv_obj_t *tabview_grid_Screen;
+extern lv_obj_t *simple_card_game_Screen;
 
 void ui_init(lv_disp_t *);
 
