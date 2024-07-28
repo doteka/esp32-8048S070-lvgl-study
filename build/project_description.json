@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "main",
-    "project_version":    "295d324-dirty",
+    "project_version":    "c4cd95e-dirty",
     "project_path":       "C:/esp32/esp_idf_lvgl",
     "idf_path":           "C:/esp/v5.1.4/esp-idf",
     "build_dir":          "C:/esp32/esp_idf_lvgl/build",
