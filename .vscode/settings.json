@@ -5,6 +5,7 @@
     "files.associations": {
         "ui_helpers.h": "c",
         "ui.h": "c",
-        "lvgl.h": "c"
+        "lvgl.h": "c",
+        "simple_card_game_var.h": "c"
     }
 }

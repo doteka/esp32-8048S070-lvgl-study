@@ -10,6 +10,7 @@ idf_component_register(
         "ui/screens/tabview_setup.c"
         "ui/screens/tabview_grid.c"
         "ui/screens/simple_card_game.c"
+        "ui/screens/simple_card_game_init.c"
     INCLUDE_DIRS
         "."
 )

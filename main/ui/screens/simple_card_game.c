@@ -6,56 +6,9 @@
 
 #include "../ui.h"
 #include "esp_log.h"
+#include "simple_card_game_var.h"
 
-// #define WIDTH 350
-// #define HEIGHT 350
-// #define COL 3
-// #define ROW 3
-
-// void simple_card_game_init(void) {
-//     // 그리드 열과 행 크기 설정
-//     lv_coord_t col_dsc[] = {WIDTH / COL, WIDTH / COL, WIDTH / COL, LV_GRID_TEMPLATE_LAST};
-//     lv_coord_t row_dsc[] = {HEIGHT / ROW, HEIGHT / ROW, HEIGHT / ROW, LV_GRID_TEMPLATE_LAST};
-
-//     // 화면 생성
-//     simple_card_game_Screen = lv_obj_create(NULL);
-//     lv_obj_clear_flag(simple_card_game_Screen, LV_OBJ_FLAG_SCROLLABLE);
-
-//     // 그리드 생성
-//     lv_obj_t *grid = lv_obj_create(simple_card_game_Screen);
-//     lv_obj_set_size(grid, WIDTH, HEIGHT);
-//     lv_obj_center(grid);
-//     lv_obj_set_layout(grid, LV_LAYOUT_GRID);
-//     lv_obj_set_style_grid_column_dsc_array(grid, col_dsc, 0);
-//     lv_obj_set_style_grid_row_dsc_array(grid, row_dsc, 0);
-//     lv_obj_set_style_pad_all(grid, 0, 0);
-    
-//     // 그리드 배경색 설정 (디버깅용)
-//     lv_obj_set_style_bg_color(grid, lv_color_hex(0xDDDDDD), 0); 
-
-//     // 버튼 생성
-//     for(uint32_t i = 0; i < COL * ROW; i++) {
-//         uint8_t col = i % COL;
-//         uint8_t row = i / COL;
-
-//         lv_obj_t *obj = lv_btn_create(grid);
-//         lv_obj_set_grid_cell(obj, LV_GRID_ALIGN_STRETCH, col, 1, LV_GRID_ALIGN_STRETCH, row, 1); // 버튼 위치 설정
-
-//         lv_obj_t *label = lv_label_create(obj);
-//         lv_label_set_text(label, "BTN");
-//         lv_obj_center(label);
-        
-//         // 버튼 스타일 설정
-//         lv_obj_set_style_bg_color(obj, lv_color_hex(0x007BFF), 0); // 버튼 배경색
-//         lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0); // 텍스트 색상
-//     }
-
-//     // 화면을 다시 그리기
-//     lv_scr_load(simple_card_game_Screen);
-// }
-
-
-#define TABLE_ROW 4
+#define TABLE_ROW 7
 #define TABLE_COL 4
 
 #define TABLE_WIDTH 400
@@ -63,9 +16,9 @@
 #define BACK_OF_CARD "GWNU"
 
 #define STATE_TO_STRING(bit) ((bit) ? "O" : "X")
-#define GAME_PROGRESS(progress) ((progress) ? "Restart" : "Start")
+#define GAME_PROGRESS(count) ((count) ? "Restart" : "START")
 
-bool progress = false;
+int count = -1;
 struct choice_num {
     int value;
     int row;
@@ -78,6 +31,7 @@ uint16_t state_array[] = {0b0000000000, 0b0000000000, 0b0000000000};
 int choice_value = 0;
 struct choice_num choice = {0};
 struct choice_num after_choice = {0};
+lv_obj_t *score_label;
 
 // Fisher-Yates Shuflle
 void shuffle_card(int card[TABLE_ROW][TABLE_COL]){
@@ -125,6 +79,7 @@ void event_state_change(lv_event_t *e) {
 
     uint16_t col, row;
     char str[10];
+    char count_str[20];
 
     lv_table_get_selected_cell(obj, &row, &col);
     // ESP_LOGI("EVENT DEBUG","Selected cell: row = %d, col = %d, indx = %d", row, col,idx);
@@ -156,11 +111,18 @@ void event_state_change(lv_event_t *e) {
                 lv_timer_t *timer = lv_timer_create(turn_card, 500, obj);
                 lv_timer_set_repeat_count(timer, 1);
             }
+
+            count++;
+            lv_snprintf(count_str, sizeof(count_str), "Count : %d", (int)count);
+            lv_label_set_text(score_label, count_str);
+
+            if(max_score < count) {
+                max_score = count;
+            }
         }       
     }
 
 }
-
 
 void show_card(lv_timer_t *timer) {
     lv_obj_t *obj = (lv_obj_t *)timer->user_data;
@@ -202,7 +164,7 @@ void new_game_init(lv_obj_t *main_screen) {
     lv_obj_t *table = lv_table_create(main_screen);
     lv_table_set_row_cnt(table, TABLE_ROW);
     lv_table_set_col_cnt(table, TABLE_COL);
-    lv_obj_set_size(table, TABLE_WIDTH, TABLE_HEIGHT);
+    lv_obj_set_size(table, TABLE_WIDTH, TABLE_WIDTH / TABLE_ROW * TABLE_ROW);
     lv_obj_align(table, LV_ALIGN_CENTER, 0, 0);
 
 
@@ -212,42 +174,70 @@ void new_game_init(lv_obj_t *main_screen) {
             lv_snprintf(num, sizeof(num), "%d", (int)answer[row][col]);
 
             lv_table_set_cell_value(table, row, col, num);
-            lv_table_set_col_width(table, col, TABLE_WIDTH/TABLE_ROW);
+            lv_table_set_col_width(table, col, TABLE_WIDTH/TABLE_COL);
         }
     }
     lv_timer_t *timer = lv_timer_create(show_card, 1000, table);
     lv_timer_set_repeat_count(timer, 1);
 
-
+    count = 0;
     lv_obj_add_event_cb(table, event_state_change, LV_EVENT_VALUE_CHANGED, answer);
 }
 
-void start_btn_click_event(lv_event_t *e) {
-    lv_obj_t * obj = lv_event_get_current_target(e);
-    lv_obj_t *label = lv_obj_get_child(obj, 0);
-    progress = !progress;
-    lv_label_set_text(label, GAME_PROGRESS(progress));
+void restart_btn_click_event(lv_event_t *e) {
+    lv_obj_t *obj = lv_event_get_current_target(e);
+    lv_obj_t *box = lv_obj_get_parent(obj);
+    lv_obj_t *box_bg = lv_obj_get_child(box, NULL);
+
+    lv_label_set_text(score_label, "Count : 0");
+    lv_obj_del(box_bg);
+    lv_obj_del(box);
     new_game_init(simple_card_game_Screen);
 }
 
+void exit_btn_click_event(lv_event_t *e) {
+    lv_obj_t * obj = lv_event_get_current_target(e);
+    lv_obj_del(simple_card_game_Screen);
+    simple_card_game_main_Screen();
+    lv_disp_load_scr(simple_card_game_init_Screen);
+}
+
+
+void event_setting_btn(lv_event_t *e) {
+    char max_score_str[50];
+    lv_snprintf(max_score_str, sizeof(max_score_str), "MAX_SCORE : %d", (int)max_score);
+    lv_obj_t *setting_box = lv_msgbox_create(NULL, "Setting", max_score_str, NULL, true);
+    lv_obj_center(setting_box);
+
+    lv_obj_t *restart_button = lv_btn_create(setting_box);
+    lv_obj_center(restart_button);
+    lv_obj_t *restart_label = lv_label_create(restart_button);
+    lv_obj_center(restart_label);
+    lv_label_set_text(restart_label, "Restart!");
+    lv_obj_add_event_cb(restart_button, restart_btn_click_event, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *exit_button = lv_btn_create(setting_box);
+    lv_obj_center(exit_button);
+    lv_obj_t *exit_label = lv_label_create(exit_button);
+    lv_obj_center(exit_label);
+    lv_label_set_text(exit_label, "Exit!");
+    lv_obj_add_event_cb(exit_button, exit_btn_click_event, LV_EVENT_CLICKED, NULL);
+}
 
 void simple_card_game_init(void) {
     srand((unsigned)time(NULL));
     simple_card_game_Screen = lv_obj_create(NULL);
     lv_obj_clear_flag(simple_card_game_Screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *start_button = lv_btn_create(simple_card_game_Screen);
-    lv_obj_set_width(start_button, 100);
-    lv_obj_set_height(start_button, 50);
-    lv_obj_set_align(start_button, LV_ALIGN_BOTTOM_MID);
-    lv_obj_add_flag(start_button, LV_OBJ_FLAG_CHECKABLE | LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_clear_flag(start_button, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    
-    lv_obj_t *start_button_label = lv_label_create(start_button);
-    lv_label_set_text(start_button_label, GAME_PROGRESS(progress));
-    lv_obj_center(start_button_label);
+    lv_obj_t *setting_btn = lv_btn_create(simple_card_game_Screen);
+    lv_obj_set_align(setting_btn, LV_ALIGN_TOP_RIGHT);
+    lv_obj_t *setting_btn_label = lv_label_create(setting_btn);
+    lv_obj_center(setting_btn_label);
+    lv_label_set_text(setting_btn_label, "Setting");
+    lv_obj_add_event_cb(setting_btn, event_setting_btn, LV_EVENT_CLICKED, NULL);
 
-    lv_obj_add_event_cb(start_button, start_btn_click_event, LV_EVENT_CLICKED, NULL);
-
-   
+    score_label = lv_label_create(simple_card_game_Screen);
+    lv_label_set_text(score_label, "Count : 0");
+    lv_obj_set_align(score_label, LV_ALIGN_BOTTOM_MID);
+    new_game_init(simple_card_game_Screen);   
 }
