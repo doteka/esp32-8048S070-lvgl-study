@@ -16,21 +16,6 @@
 static bool btn_state = true;
 static bool *desc_scroll_state = &btn_state;
 
-static void drag_event_handler(lv_event_t * e) {
-    lv_obj_t * obj = lv_event_get_target(e);
-
-    lv_indev_t * indev = lv_indev_get_act();
-    if(indev == NULL) return;
-
-    lv_point_t vect;
-    lv_indev_get_vect(indev, &vect);
-
-    lv_coord_t x = lv_obj_get_x(obj) + vect.x;
-    lv_coord_t y = lv_obj_get_y(obj) + vect.y;
-    lv_obj_set_pos(obj, x, y);
-}
-
-
 void event_btn(lv_event_t *e) {
     lv_obj_t * obj = lv_event_get_current_target(e);
     lv_obj_t * btn = lv_obj_get_child(obj, 0);
@@ -50,9 +35,6 @@ void event_btn(lv_event_t *e) {
 
 void ui_Screen2_screen_init(void)
 {
-    esp_log_level_set("*", ESP_LOG_INFO);
-
-    static lv_opa_t mask_map[MASK_WIDTH * MASK_HEIGHT];
     ui_Screen2 = lv_obj_create(NULL);
     lv_obj_clear_flag(ui_Screen2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
@@ -86,11 +68,4 @@ void ui_Screen2_screen_init(void)
     lv_label_set_text(btn_label, btn_text(btn_state));
     lv_obj_center(btn_label);
 
-    lv_obj_t *drag = lv_obj_create(ui_Screen2);
-    lv_obj_set_size(drag, 150, 100);
-    lv_obj_add_event_cb(drag, drag_event_handler, LV_EVENT_PRESSING, NULL);
-
-    lv_obj_t *drage_label = lv_label_create(drag);
-    lv_label_set_text(drage_label, "Easton");
-    lv_obj_center(drage_label);
 }

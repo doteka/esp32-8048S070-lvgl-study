@@ -14,7 +14,7 @@
 #define state_col 2
 #define state_check(state) ((state)?"O":"X")
 
-char *setup_option[] = {"Auto", "Timing", "Skip", "Win", "Lose", "Notion", "GWNU", "KWN"};
+char *setup_option[] = {"Auto", "Timing", "Skip", "Win", "Lose", "Notion", "GWNU", "KNU"};
 int setup_option_cnt = 8;
 uint16_t checklist_state = 0b0010010;
 

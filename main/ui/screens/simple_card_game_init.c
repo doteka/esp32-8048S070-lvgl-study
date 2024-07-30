@@ -6,7 +6,7 @@
 #include "../ui.h"
 #include "simple_card_game_var.h"
 
-int max_score = 0;
+int min_score = 999;
 
 void game_start_btn_event(lv_event_t *e) {
     simple_card_game_init();

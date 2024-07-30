@@ -115,10 +115,6 @@ void event_state_change(lv_event_t *e) {
             count++;
             lv_snprintf(count_str, sizeof(count_str), "Count : %d", (int)count);
             lv_label_set_text(score_label, count_str);
-
-            if(max_score < count) {
-                max_score = count;
-            }
         }       
     }
 
@@ -187,26 +183,24 @@ void new_game_init(lv_obj_t *main_screen) {
 void restart_btn_click_event(lv_event_t *e) {
     lv_obj_t *obj = lv_event_get_current_target(e);
     lv_obj_t *box = lv_obj_get_parent(obj);
-    lv_obj_t *box_bg = lv_obj_get_child(box, NULL);
 
     lv_label_set_text(score_label, "Count : 0");
-    lv_obj_del(box_bg);
-    lv_obj_del(box);
+    lv_msgbox_close(box);
     new_game_init(simple_card_game_Screen);
 }
 
 void exit_btn_click_event(lv_event_t *e) {
     lv_obj_t * obj = lv_event_get_current_target(e);
     lv_obj_del(simple_card_game_Screen);
-    simple_card_game_main_Screen();
-    lv_disp_load_scr(simple_card_game_init_Screen);
+    if(simple_card_game_init_Screen)
+        lv_disp_load_scr(simple_card_game_init_Screen);
 }
 
 
 void event_setting_btn(lv_event_t *e) {
-    char max_score_str[50];
-    lv_snprintf(max_score_str, sizeof(max_score_str), "MAX_SCORE : %d", (int)max_score);
-    lv_obj_t *setting_box = lv_msgbox_create(NULL, "Setting", max_score_str, NULL, true);
+    char min_score_str[50];
+    lv_snprintf(min_score_str, sizeof(min_score_str), "MIN_SCORE : %d", (int)min_score);
+    lv_obj_t *setting_box = lv_msgbox_create(NULL, "Setting", min_score_str, NULL, true);
     lv_obj_center(setting_box);
 
     lv_obj_t *restart_button = lv_btn_create(setting_box);

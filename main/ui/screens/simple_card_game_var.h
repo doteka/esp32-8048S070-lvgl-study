@@ -1,1 +1,1 @@
-extern int max_score;
+extern int min_score;

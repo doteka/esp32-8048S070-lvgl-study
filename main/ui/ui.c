@@ -106,8 +106,6 @@ void ui_init(lv_disp_t *disp) {
       false, LV_FONT_DEFAULT);
   lv_disp_set_theme(disp, theme);
   simple_card_game_main_Screen();
-  // ui_Screen2_screen_init();
   ui____initial_actions0 = lv_obj_create(NULL);
   lv_disp_load_scr(simple_card_game_init_Screen);
-  // lv_disp_load_scr(ui_Screen2);
 }
