@@ -6,7 +6,8 @@
 #include "../ui.h"
 #include "simple_card_game_var.h"
 
-int min_score = 999;
+int min_score = 9999;
+lv_obj_t *max_score_label;
 
 void game_start_btn_event(lv_event_t *e) {
     simple_card_game_init();
@@ -20,9 +21,12 @@ void simple_card_game_main_Screen(void)
     simple_card_game_init_Screen = lv_obj_create(NULL);
     lv_obj_clear_flag(simple_card_game_init_Screen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    lv_obj_t *max_score_label = lv_label_create(simple_card_game_init_Screen);
+    max_score_label = lv_label_create(simple_card_game_init_Screen);
     lv_obj_center(max_score_label);
-    lv_snprintf(max_score_str, sizeof(max_score_str), "MAX_SCORE : %d", (int)max_score);
+    if(min_score == 9999)
+        lv_snprintf(max_score_str, sizeof(max_score_str), "Shortest Record : %d", (int)0);
+    else
+        lv_snprintf(max_score_str, sizeof(max_score_str), "Shortest Record : %d", (int)min_score);
     lv_label_set_text(max_score_label, max_score_str);
 
     lv_obj_t *game_start_btn = lv_btn_create(simple_card_game_init_Screen);

@@ -8,7 +8,7 @@
 #include "esp_log.h"
 #include "simple_card_game_var.h"
 
-#define TABLE_ROW 7
+#define TABLE_ROW 3
 #define TABLE_COL 4
 
 #define TABLE_WIDTH 400
@@ -18,7 +18,20 @@
 #define STATE_TO_STRING(bit) ((bit) ? "O" : "X")
 #define GAME_PROGRESS(count) ((count) ? "Restart" : "START")
 
+void shuffle_card(int card[TABLE_ROW][TABLE_COL]);
+void choice_init(void);
+void turn_card(lv_timer_t *timer);
+void event_state_change(lv_event_t *e);
+void show_card(lv_timer_t *timer);
+void new_game_init(lv_obj_t *main_screen);
+void restart_btn_click_event(lv_event_t *e);
+void exit_btn_click_event(lv_event_t *e);
+void event_setting_btn(lv_event_t *e);
+
+
+
 int count = -1;
+int matched_card = 0; 
 struct choice_num {
     int value;
     int row;
@@ -29,9 +42,8 @@ char slider_value[3][10];
 lv_obj_t *slider_labels[3];
 uint16_t state_array[] = {0b0000000000, 0b0000000000, 0b0000000000};
 int choice_value = 0;
-struct choice_num choice = {0};
-struct choice_num after_choice = {0};
-lv_obj_t *score_label;
+struct choice_num choice,after_choice;
+lv_obj_t *score_label, *setting_box;
 
 // Fisher-Yates Shuflle
 void shuffle_card(int card[TABLE_ROW][TABLE_COL]){
@@ -52,13 +64,8 @@ void shuffle_card(int card[TABLE_ROW][TABLE_COL]){
 }
 
 void choice_init(void) {
-    choice.value = 0;
-    choice.row = 0;
-    choice.col = 0;
-
-    after_choice.value = 0;
-    after_choice.row = 0;
-    after_choice.col = 0;
+    memset(&choice, 0, sizeof(choice));
+    memset(&after_choice, 0, sizeof(after_choice));
 }
 
 void turn_card(lv_timer_t *timer) {
@@ -102,6 +109,7 @@ void event_state_change(lv_event_t *e) {
                 lv_table_set_cell_value(obj, choice.row, choice.col, "");
                 answer[row][col] = -1;
                 answer[choice.row][choice.col] = -1;
+                matched_card += 2;
                 choice_init();
             } else {
                 after_choice.value = answer[row][col];
@@ -118,6 +126,15 @@ void event_state_change(lv_event_t *e) {
         }       
     }
 
+    if(matched_card >= TABLE_ROW*TABLE_COL) {
+        char max_score_str[50];
+        if(min_score >= count)
+                min_score = count; 
+        lv_event_t *event;
+        lv_snprintf(max_score_str, sizeof(max_score_str), "Shortest Record : %d", (int)min_score);
+        memset(&event, 0, sizeof(event));
+        event_setting_btn(event);
+    }
 }
 
 void show_card(lv_timer_t *timer) {
@@ -136,7 +153,7 @@ void show_card(lv_timer_t *timer) {
 
 void new_game_init(lv_obj_t *main_screen) {
     int (*answer)[TABLE_COL] = malloc(TABLE_ROW * TABLE_COL * sizeof(int));
-
+    matched_card = 0;
     if(answer == NULL)
         return;
     else {
@@ -191,16 +208,20 @@ void restart_btn_click_event(lv_event_t *e) {
 
 void exit_btn_click_event(lv_event_t *e) {
     lv_obj_t * obj = lv_event_get_current_target(e);
-    lv_obj_del(simple_card_game_Screen);
-    if(simple_card_game_init_Screen)
-        lv_disp_load_scr(simple_card_game_init_Screen);
+    lv_msgbox_close(setting_box);
+    simple_card_game_main_Screen();
+    lv_disp_load_scr(simple_card_game_init_Screen);
 }
-
 
 void event_setting_btn(lv_event_t *e) {
     char min_score_str[50];
-    lv_snprintf(min_score_str, sizeof(min_score_str), "MIN_SCORE : %d", (int)min_score);
-    lv_obj_t *setting_box = lv_msgbox_create(NULL, "Setting", min_score_str, NULL, true);
+    char score_str[50];
+    
+    if(min_score == 9999)
+        lv_snprintf(min_score_str, sizeof(min_score_str), "Shortest Record : %d\nScore : %d", (int)0, (int)count);
+    else
+        lv_snprintf(min_score_str, sizeof(min_score_str), "Shortest Record : %d\nScore : %d", (int)min_score, (int)count);
+    setting_box = lv_msgbox_create(NULL, "Simple Card Game", min_score_str, NULL, true);
     lv_obj_center(setting_box);
 
     lv_obj_t *restart_button = lv_btn_create(setting_box);
