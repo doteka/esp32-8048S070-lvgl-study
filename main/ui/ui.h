@@ -23,6 +23,7 @@ void tabview_setup_Screen_screen_init(void);
 void tabview_grid_Screen_init(void);
 void simple_card_game_init(void);
 void simple_card_game_main_Screen(void);
+void charts_Screen_init(void);
 
 extern lv_obj_t *ui_Screen1;
 extern lv_obj_t *ui_Screen2;
@@ -48,6 +49,7 @@ extern lv_obj_t *tabview_setup_Screen;
 extern lv_obj_t *tabview_grid_Screen;
 extern lv_obj_t *simple_card_game_Screen;
 extern lv_obj_t *simple_card_game_init_Screen;
+extern lv_obj_t *charts_init_Screen;
 
 void ui_init(lv_disp_t *);
 
