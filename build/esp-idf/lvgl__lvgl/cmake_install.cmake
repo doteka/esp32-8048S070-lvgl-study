@@ -1,4 +1,4 @@
-# Install script for directory: C:/esp32/esp_idf_lvgl/managed_components/lvgl__lvgl
+# Install script for directory: C:/esp32/esp_idf_lvgl_ver/managed_components/lvgl__lvgl
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

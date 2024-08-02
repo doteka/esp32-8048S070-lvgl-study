@@ -62,6 +62,7 @@ void tabview_grid_Screen_init(void);
 void simple_card_game_init(void);
 void simple_card_game_main_Screen(void);
 void charts_Screen_init(void);
+void pulse_Screen_init(void);
 
 lv_obj_t *ui_Screen1;
 lv_obj_t *ui_Button2;
@@ -87,6 +88,7 @@ lv_obj_t *tabview_grid_Screen;
 lv_obj_t *simple_card_game_Screen;
 lv_obj_t *simple_card_game_init_Screen;
 lv_obj_t *charts_init_Screen;
+lv_obj_t *pulse_init_Screen;
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
 #if LV_COLOR_DEPTH != 16
@@ -107,7 +109,8 @@ void ui_init(lv_disp_t *disp) {
       disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
       false, LV_FONT_DEFAULT);
   lv_disp_set_theme(disp, theme);
-  charts_Screen_init();
+  pulse_Screen_init();
+  //charts_Screen_init();
   ui____initial_actions0 = lv_obj_create(NULL);
-  lv_disp_load_scr(charts_init_Screen);
+  lv_disp_load_scr(pulse_init_Screen);
 }

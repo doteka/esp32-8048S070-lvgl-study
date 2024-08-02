@@ -1,4 +1,4 @@
-# Install script for directory: C:/esp32/esp_idf_lvgl
+# Install script for directory: C:/esp32/esp_idf_lvgl_ver
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/esp32/esp_idf_lvgl/build/esp-idf/cmake_install.cmake")
+  include("C:/esp32/esp_idf_lvgl_ver/build/esp-idf/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -50,5 +50,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/esp32/esp_idf_lvgl/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "C:/esp32/esp_idf_lvgl_ver/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

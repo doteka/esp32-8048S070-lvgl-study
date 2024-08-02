@@ -12,6 +12,19 @@ idf_component_register(
         "ui/screens/simple_card_game.c"
         "ui/screens/simple_card_game_init.c"
         "ui/screens/charts.c"
+        "ui/screens/pulse.c"
     INCLUDE_DIRS
         "."
+    REQUIRES spi_flash
+    REQUIRES nvs_flash
+    REQUIRES spiffs
+
 )
+# 파티션 테이블 파일 설정
+# set(partition_table_file "${CMAKE_SOURCE_DIR}/partitions.csv")
+# set(PARTITION_TABLE_FILENAME ${partition_table_file})
+
+# # 파티션 테이블 파일 설정
+# set(ESP32_FLASH_VARS
+#     PARTITION_TABLE_FILENAME
+# )
