@@ -15,6 +15,7 @@
 #include "sdkconfig.h"
 #include <stdio.h>
 
+
 #if CONFIG_EXAMPLE_LCD_TOUCH_ENABLED
 #include "driver/i2c.h"
 #include "esp_lcd_touch_gt911.h"
@@ -136,6 +137,8 @@ static void example_increase_lvgl_tick(void *arg) {
   /* Tell LVGL how many milliseconds has elapsed */
   lv_tick_inc(LVGL_TICK_PERIOD_MS);
 }
+
+
 
 void app_main(void) {
   static lv_disp_draw_buf_t

@@ -5,25 +5,86 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include "../ui.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
+#include "esp_heap_caps.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-#define GRAPH_MAX_COUNT 200
+
+#define SINE_WAVE_LEN 60
+#define SAW_WAVE_LEN 50
+#define RECTANGLE_LEN 100
+
 #define TAG "SPIFFS"
+#define MAX_Y 65
+#define MIN_Y -65
+#define DATA_SIZE 600
 
-static bool fs_init = false;
-char graph_value[200] = {0,5,10,15,20,25,29,33,37,40,43,45,47,48,49,50,49,48,47,45,43,40,37,33,29,25,20,15,10,5,0,-5,-10,-15,-20,-24,-29,-33,-37,-40,-43,-45,-47,-48,-49,-50,-49,-48,-47,-45,-43,-40,-37,-33,-29,-24,-20,-15,-10,-5, 
-0,5,10,15,20,25,29,33,37,40,43,45,47,48,49,50,49,48,47,45,43,40,37,33,29,25,20,15,10,5,0,-5,-10,-15,-20,-24,-29,-33,-37,-40,-43,-45,-47,-48,-49,-50,-49,-48,-47,-45,-43,-40,-37,-33,-29,-24,-20,-15,-10,-5, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-char graph_str[GRAPH_MAX_COUNT*6];
+int sine_wave[SINE_WAVE_LEN] = {0,5,10,15,20,25,29,33,37,40,43,45,47,48,49,50,49,48,47,45,43,40,37,33,29,25,20,15,10,5,0,-5,-10,-15,-20,-24,-29,-33,-37,-40,-43,-45,-47,-48,-49,-50,-49,-48,-47,-45,-43,-40,-37,-33,-29,-24,-20,-15,-10,-5};
+int saw_wave[SAW_WAVE_LEN] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49};
+int rectangle[RECTANGLE_LEN] = {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50};
 
+int selection_len;
+int *selection_wave;
+int selection_sine = 0;
+int selection_idx = 0;
+char graph_str[DATA_SIZE*4];
+int backup[DATA_SIZE]={0,};
+
+lv_obj_t *chart;
+lv_chart_series_t * point;
+void clear_chart() {
+    lv_obj_t *obj = lv_obj_get_parent(chart);
+    lv_obj_del(chart);
+    chart = lv_chart_create(obj );
+    lv_obj_set_size(chart, LV_PCT(100), LV_PCT(90));
+    lv_obj_align(chart, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_point_count(chart, DATA_SIZE);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
+    lv_obj_set_style_bg_color(chart, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_radius(chart, 0, LV_PART_INDICATOR);  // Set radius to 0 to hide points
+    lv_obj_set_style_border_width(chart, 0, LV_PART_INDICATOR); // Set border width to 0 to hide border
+    point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
+    //lv_style_set_line_width(point, 10);
+    memset(backup, 0, sizeof(backup));
+}
+void update_chart(void) {
+    static uint16_t index = 0;
+    // lv_chart_set_next_value(chart, point,graph_value[index]);
+    lv_chart_set_value_by_id(chart, point, index, selection_wave[selection_idx%selection_len]);
+    lv_chart_refresh(chart);
+    ESP_LOGE("CHART", "index: %d, value: %d", index, selection_wave[selection_idx%selection_len]);
+    backup[index] = selection_wave[selection_idx%selection_len];
+    if(index >= DATA_SIZE-1) {
+        clear_chart();
+        index %= DATA_SIZE;
+    }
+    index++;
+    selection_idx++;    
+}
+void print_memory_usage()
+{
+    ESP_LOGI(TAG, "System Memory Info:");
+    ESP_LOGI(TAG, "    Total free heap: %lu bytes", (unsigned long) esp_get_free_heap_size());
+    ESP_LOGI(TAG, "    Largest free block: %lu bytes", (unsigned long) heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    ESP_LOGI(TAG, "    Minimum free heap ever: %lu bytes", (unsigned long) esp_get_minimum_free_heap_size());
+
+    multi_heap_info_t info;
+    heap_caps_get_info(&info, MALLOC_CAP_8BIT);
+    ESP_LOGI(TAG, "Heap Info (8-bit capable):");
+    ESP_LOGI(TAG, "    Total size: %lu bytes", (unsigned long) (info.total_free_bytes + info.total_allocated_bytes));
+    ESP_LOGI(TAG, "    Free size: %lu bytes", (unsigned long) info.total_free_bytes);
+    ESP_LOGI(TAG, "    Allocated size: %lu bytes", (unsigned long) info.total_allocated_bytes);
+    ESP_LOGI(TAG, "    Minimum free size ever: %lu bytes", (unsigned long) info.minimum_free_bytes);
+}
+
+// File System
 void init_spiffs() {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/spiffs",
@@ -32,8 +93,6 @@ void init_spiffs() {
         .format_if_mount_failed = true
     };
 
-    // esp_err_t ret = esp_spiffs_mounted(conf.base_path, conf.partition_label, conf.max_files, conf.format_if_mount_failed);
-    // esp_err_t ret = esp_vfs_spiffs_mounted(conf.partition_label);
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
@@ -52,7 +111,6 @@ void init_spiffs() {
     } else {
         ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
     }
-
     ESP_LOGI(TAG, "SPIFFS mounted successfully");
 }
 void write_file(const char *path, const char *data, bool type) { // type0 = binary, type1 = text
@@ -79,7 +137,7 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
         ESP_LOGE(TAG, "Failed to open file for reading");
         return;
     }
-    char line[GRAPH_MAX_COUNT*6];
+    char line[DATA_SIZE*6];
 
     if(!type) {
         size_t bytesRead = fread(line, 1, sizeof(line) - 1, f); // null terminator를 위한 공간
@@ -97,20 +155,17 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
     lv_textarea_set_text(textarea, line);
 }
 
+// File Save & Load Button
 void save_text_btn_click(lv_event_t *e) {
-    if(!fs_init) {
-        init_spiffs();
-        fs_init = true;
-    }
     char temp_text[16];
     graph_str[0] = '\0';
 
-    for(int i=0; i<GRAPH_MAX_COUNT; i++) {
-        snprintf(temp_text, sizeof(temp_text), "%d", graph_value[i]);
+    for(int i=0; i<DATA_SIZE; i++) {
+        snprintf(temp_text, sizeof(temp_text), "%d", backup[i]);
 
         if(strlen(graph_str) + strlen(temp_text) +1 < sizeof(graph_str)) {
             strcat(graph_str, temp_text);
-            if(i < GRAPH_MAX_COUNT-1)
+            if(i < DATA_SIZE-1)
                 strcat(graph_str, ",");
         } else {
             break;
@@ -120,28 +175,19 @@ void save_text_btn_click(lv_event_t *e) {
 }
 void load_text_btn_click(lv_event_t *e) {
     lv_obj_t *textarea = lv_event_get_user_data(e);
-    if(!fs_init) {
-        init_spiffs();
-        fs_init = true;
-    }
     printf("Load text btn In");
     read_file("/spiffs/test.txt", textarea, true);
 }
-
 void save_binary_btn_click(lv_event_t *e) {
-    if(!fs_init) {
-        init_spiffs();
-        fs_init = true;
-    }
     char temp_text[16];
     graph_str[0] = '\0';
 
-    for(int i=0; i<GRAPH_MAX_COUNT; i++) {
-        snprintf(temp_text, sizeof(temp_text), "%d", graph_value[i]);
+    for(int i=0; i<DATA_SIZE; i++) {
+        snprintf(temp_text, sizeof(temp_text), "%d", backup[i]);
 
         if(strlen(graph_str) + strlen(temp_text) +1 < sizeof(graph_str)) {
             strcat(graph_str, temp_text);
-            if(i < GRAPH_MAX_COUNT-1)
+            if(i < DATA_SIZE-1)
                 strcat(graph_str, ",");
         } else {
             break;
@@ -151,13 +197,10 @@ void save_binary_btn_click(lv_event_t *e) {
 }
 void load_binary_btn_click(lv_event_t *e) {
     lv_obj_t *textarea = lv_event_get_user_data(e);
-    if(!fs_init) {
-        init_spiffs();
-        fs_init = true;
-    }
     printf("Load text btn In");
     read_file("/spiffs/binary.bin", textarea, false);
 }
+
 void for_text_btn_click(lv_event_t *e) {
     char temp_text[16];
 
@@ -166,12 +209,12 @@ void for_text_btn_click(lv_event_t *e) {
 
     graph_str[0] = '\0';
 
-    for(int i=0; i<GRAPH_MAX_COUNT; i++) {
-        snprintf(temp_text, sizeof(temp_text), "%d", graph_value[i]);
+    for(int i=0; i<DATA_SIZE; i++) {
+        snprintf(temp_text, sizeof(temp_text), "%d", backup[i]);
 
         if(strlen(graph_str) + strlen(temp_text) +1 < sizeof(graph_str)) {
             strcat(graph_str, temp_text);
-            if(i < GRAPH_MAX_COUNT-1)
+            if(i < DATA_SIZE-1)
                 strcat(graph_str, ",");
         } else {
             break;
@@ -179,20 +222,34 @@ void for_text_btn_click(lv_event_t *e) {
     }
     lv_textarea_set_text(textarea, graph_str);
 }
-
 void clear_text_btn_click(lv_event_t *e) {
-    lv_obj_t *obj = lv_event_get_target(e);
-    lv_obj_t *textarea = lv_event_get_user_data(e);
+    if(selection_sine == 0) {
+        selection_wave = saw_wave;
+        selection_len = SAW_WAVE_LEN;
+        selection_sine = 1;
+    } else if(selection_sine == 1){
+        selection_wave = rectangle;
+        selection_len = RECTANGLE_LEN;
+        selection_sine = 2; 
+    }  else if(selection_sine == 2){
+        selection_wave = sine_wave;
+        selection_len = SINE_WAVE_LEN;
+        selection_sine = 0; 
+    }
+    selection_idx = 0;
+    // lv_obj_t *obj = lv_event_get_target(e);
+    // lv_obj_t *textarea = lv_event_get_user_data(e);
 
-    lv_textarea_set_text(textarea, "");
-
+    // lv_textarea_set_text(textarea, "");
+    // init_spiffs();
 }
-
-
 void design_init(lv_obj_t *screen) {
-    lv_obj_set_flex_flow(pulse_init_Screen, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t *main = lv_obj_create(screen);
+    lv_obj_set_size(main, 800, 480);
+    lv_obj_center(main);
+    lv_obj_set_flex_flow(main, LV_FLEX_FLOW_COLUMN);
 
-    lv_obj_t *chartView = lv_obj_create(pulse_init_Screen);
+    lv_obj_t *chartView = lv_obj_create(main);
     lv_obj_set_size(chartView, LV_PCT(100), LV_PCT(50));
 
     // Chart Left Area
@@ -200,9 +257,14 @@ void design_init(lv_obj_t *screen) {
     lv_obj_set_size(chartView_left_area, LV_PCT(80), LV_PCT(100));
     lv_obj_align(chartView_left_area, LV_ALIGN_TOP_LEFT, 5, 5);
 
-    lv_obj_t *chart = lv_chart_create(chartView_left_area);
-    lv_obj_set_size(chart, LV_PCT(100), LV_PCT(90));
-    lv_obj_align(chart, LV_ALIGN_TOP_LEFT, 0, 0);
+    chart = lv_chart_create(chartView_left_area);
+    clear_chart();
+    // lv_obj_set_size(chart, LV_PCT(100), LV_PCT(90));
+    // lv_obj_align(chart, LV_ALIGN_TOP_LEFT, 0, 0);
+    // lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    // lv_chart_set_point_count(chart, DATA_SIZE);
+    // lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
+    // point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
 
     lv_obj_t *start_btn = lv_btn_create(chartView_left_area);
     lv_obj_set_size(start_btn, LV_PCT(30), LV_PCT(10));
@@ -218,7 +280,7 @@ void design_init(lv_obj_t *screen) {
     lv_obj_set_flex_flow(chartView_right_area, LV_FLEX_FLOW_COLUMN);
 
 
-    lv_obj_t *textView = lv_obj_create(pulse_init_Screen);
+    lv_obj_t *textView = lv_obj_create(main);
     lv_obj_set_size(textView, LV_PCT(100), LV_PCT(50));
 
     // Text Left Area
@@ -290,14 +352,35 @@ void design_init(lv_obj_t *screen) {
 
     lv_obj_set_flex_align(chartView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
     lv_obj_set_flex_align(textView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
+    
+    selection_len = SINE_WAVE_LEN;
+    selection_wave = sine_wave;
 }
 
+void refresh_pulse_init_screen()
+{
+    // 객체 강제 새로 고침
+    lv_obj_invalidate(pulse_init_Screen);
+
+    // LVGL 태스크 핸들러 호출
+    lv_task_handler();
+
+    // 메모리 사용량 출력 (디버깅)
+    print_memory_usage();
+}
+void timer_callback(lv_timer_t * timer) {
+    update_chart();
+}
+
+void create_timer(void) {
+    lv_timer_create(timer_callback, 100, NULL); // Update every 100 ms (adjust as needed)
+}
 
 void pulse_Screen_init(void) {
+    // init_spiffs();
     pulse_init_Screen = lv_obj_create(NULL);
-    lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-
+    lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);  // Flags
     design_init(pulse_init_Screen);
-
-    heap_caps_print_heap_info(MALLOC_CAP_8BIT);
+    print_memory_usage();
+    create_timer(); 
 }

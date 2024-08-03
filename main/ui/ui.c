@@ -49,9 +49,7 @@
 
 #include "ui.h"
 #include "ui_helpers.h"
-
 ///////////////////// VARIABLES ////////////////////
-
 // SCREEN: ui_Screen2
 void ui_Screen2_screen_init(void);
 void ui_Screen1_screen_init(void);
