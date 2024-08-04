@@ -13,6 +13,7 @@ idf_component_register(
         "ui/screens/simple_card_game_init.c"
         "ui/screens/charts.c"
         "ui/screens/pulse.c"
+        "ui/screens/segment_font.c"
     INCLUDE_DIRS
         "."
     REQUIRES spi_flash

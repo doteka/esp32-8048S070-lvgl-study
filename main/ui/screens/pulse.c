@@ -6,8 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include "../ui.h"
+#include "segment_font.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
@@ -58,7 +61,7 @@ void clear_chart() {
     lv_style_set_line_color(&style_chart_main, lv_color_black());
 
     lv_style_init(&style_chart_serires);
-    lv_style_set_line_width(&style_chart_serires, 5);
+    lv_style_set_line_width(&style_chart_serires, 2);
     //lv_style_set_radius(&style_chart_serires, 5);
 
     lv_obj_t *obj = lv_obj_get_parent(chart);
@@ -73,6 +76,7 @@ void clear_chart() {
     lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
     lv_obj_add_style(chart, &style_chart_main, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_add_style(chart, &style_chart_serires, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
     point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
     memset(backup, 0, sizeof(backup));
     
@@ -82,19 +86,25 @@ void clear_chart() {
 }
 void update_chart(void) {
     static uint16_t index = 0;
+    int random;
+    
     if(chart_run) {
-        lv_chart_set_value_by_id(chart, point, index, selection_wave[selection_idx%selection_len]);
+        if(selection_len == -1) {
+            random = (rand() % 131) - 65;
+            printf("random : %d\t", random);
+            lv_chart_set_value_by_id(chart, point, index, random);
+        } else {
+            lv_chart_set_value_by_id(chart, point, index, selection_wave[selection_idx%selection_len]);
+            backup[index] = selection_wave[selection_idx%selection_len];
+            selection_idx++;  
+        }
         lv_chart_refresh(chart);
-        ESP_LOGE("CHART", "index: %d, value: %d", index, selection_wave[selection_idx%selection_len]);
-        backup[index] = selection_wave[selection_idx%selection_len];
         if(index >= DATA_SIZE-1) {
             clear_chart();
             index = 0;
         }
         index++;
-        selection_idx++;  
     }
-  
 }
 void update_timer(void) {
     static uint32_t time = 0;
@@ -250,21 +260,10 @@ void radio_selection_event(lv_event_t *e) {
     lv_obj_t *cont = lv_event_get_current_target(e);
     lv_obj_t *act_cb = lv_event_get_target(e);
     lv_obj_t *old_cb;
+
     if(*active_id != -1) {
         old_cb = lv_obj_get_child(cont, *active_id);
         lv_obj_clear_state(old_cb, LV_STATE_CHECKED);
-
-        if(*active_id == 0) {
-            selection_wave = saw_wave;
-            selection_len = SAW_WAVE_LEN;
-        } else if(*active_id == 1){
-            selection_wave = rectangle;
-            selection_len = RECTANGLE_LEN;
-        }  else if(*active_id == 2){
-            selection_wave = sine_wave;
-            selection_len = SINE_WAVE_LEN;
-        }
-        selection_idx = 0;
     }
     if(act_cb == cont) {
         *active_id = -1;
@@ -274,8 +273,22 @@ void radio_selection_event(lv_event_t *e) {
     lv_obj_add_state(act_cb, LV_STATE_CHECKED);
     *active_id = lv_obj_get_index(act_cb);
 
-    ESP_LOGE("RADIO","active id: %d", (int)*active_id);
+    if(*active_id == 0) {
+        selection_wave = sine_wave;
+        selection_len = SINE_WAVE_LEN;
+    } else if(*active_id == 1){
+        selection_wave = saw_wave;
+        selection_len = SAW_WAVE_LEN;
+    } else if(*active_id == 2){
+        selection_wave = rectangle;
+        selection_len = RECTANGLE_LEN;
+    } else if(*active_id == 3) {
+        selection_len = -1;
+    }
 
+    ESP_LOGE("SEL", "selection : %d", selection_len);
+    selection_idx = 0;
+    ESP_LOGI("RADIO","active id: %d", (int)*active_id);
 }
 void make_radio_btn(lv_obj_t *screen, const char *title, lv_style_t *style_radio, lv_style_t *style_radio_chk) {
     lv_obj_t *obj = lv_checkbox_create(screen);
@@ -333,12 +346,61 @@ void for_text_btn_click(lv_event_t *e) {
     lv_textarea_set_text(textarea, graph_str);
 }
 void clear_text_btn_click(lv_event_t *e) {
+    init_spiffs();
     lv_obj_t *obj = lv_event_get_target(e);
     lv_obj_t *textarea = lv_event_get_user_data(e);
 
     lv_textarea_set_text(textarea, "");
     init_spiffs();
 }
+void print_font_info(const lv_font_t * font) {
+    // 폰트가 NULL인지 확인
+    if (font == NULL) {
+        printf("Font is NULL\n");
+        return;
+    }
+
+    // 폰트의 기본 정보 출력
+    printf("Font Information:\n");
+    printf("  - Line Height: %d\n", font->line_height);
+    printf("  - Base Line: %d\n", font->base_line);
+
+    // 버전 체크 후 추가 정보 출력
+    #if LVGL_VERSION_MAJOR >= 8
+    printf("  - Underline Position: %d\n", font->underline_position);
+    printf("  - Underline Thickness: %d\n", font->underline_thickness);
+    #endif
+
+    // 글리프 정보 출력
+    if (font->dsc) {
+        const lv_font_fmt_txt_dsc_t * dsc = font->dsc;
+        printf("  Glyph Bitmap:\n");
+        printf("    - Number of Glyphs: %d\n", dsc->cmap_num);
+        printf("    - Bitmap Format: %d\n", dsc->bitmap_format);
+        printf("    - Bpp: %d\n", dsc->bpp);
+        printf("    - Kerning Scale: %d\n", dsc->kern_scale);
+        printf("    - Kerning Classes: %d\n", dsc->kern_classes);
+
+        if (dsc->glyph_bitmap) {
+            printf("    - Glyph Bitmap Address: %p\n", (void *)dsc->glyph_bitmap);
+        }
+        if (dsc->glyph_dsc) {
+            printf("    - Glyph Description Address: %p\n", (void *)dsc->glyph_dsc);
+        }
+        if (dsc->cmaps) {
+            printf("    - Cmaps Address: %p\n", (void *)dsc->cmaps);
+        }
+        if (dsc->kern_dsc) {
+            printf("    - Kerning Descriptor Address: %p\n", (void *)dsc->kern_dsc);
+        }
+        if (dsc->cache) {
+            printf("    - Glyph Cache Address: %p\n", (void *)dsc->cache);
+        }
+    } else {
+        printf("Font description (dsc) is NULL\n");
+    }
+}
+
 void design_init(lv_obj_t *screen) {
     lv_obj_t *main = lv_obj_create(screen);
     lv_obj_set_size(main, 800, 480);
@@ -449,6 +511,8 @@ void design_init(lv_obj_t *screen) {
     lv_obj_center(time_label);
     lv_label_set_text(time_label, "00:00:00:00");
     lv_obj_set_style_pad_all(time_label, 0, LV_PART_MAIN);
+    // lv_obj_set_style_text_font(time_label, &segment_font, 0);
+    print_font_info(&segment_font);
 
 
     lv_obj_t *text_save_btn = lv_btn_create(textView_right_area);
@@ -469,13 +533,11 @@ void design_init(lv_obj_t *screen) {
 
     lv_obj_set_flex_align(chartView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
     lv_obj_set_flex_align(textView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
-    
-    selection_len = SINE_WAVE_LEN;
-    selection_wave = sine_wave;
 }
 
 void pulse_Screen_init(void) {
     // init_spiffs();
+    srand(time(NULL));
     pulse_init_Screen = lv_obj_create(NULL);
     lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);
     design_init(pulse_init_Screen);

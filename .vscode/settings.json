@@ -6,6 +6,7 @@
         "ui_helpers.h": "c",
         "ui.h": "c",
         "lvgl.h": "c",
-        "simple_card_game_var.h": "c"
+        "simple_card_game_var.h": "c",
+        "segment_font.h": "c"
     }
 }
