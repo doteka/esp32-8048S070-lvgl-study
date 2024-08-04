@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+
 #include "../ui.h"
 #include "esp_system.h"
 #include "esp_log.h"
@@ -16,6 +18,8 @@
 #include "freertos/semphr.h"
 
 
+
+
 #define SINE_WAVE_LEN 60
 #define SAW_WAVE_LEN 50
 #define RECTANGLE_LEN 100
@@ -24,6 +28,9 @@
 #define MAX_Y 65
 #define MIN_Y -65
 #define DATA_SIZE 600
+
+char *wave_title[5] = {"SineWave", "SAW_WAVE", "RECTANGLE", "NOISE"};
+
 
 int sine_wave[SINE_WAVE_LEN] = {0,5,10,15,20,25,29,33,37,40,43,45,47,48,49,50,49,48,47,45,43,40,37,33,29,25,20,15,10,5,0,-5,-10,-15,-20,-24,-29,-33,-37,-40,-43,-45,-47,-48,-49,-50,-49,-48,-47,-45,-43,-40,-37,-33,-29,-24,-20,-15,-10,-5};
 int saw_wave[SAW_WAVE_LEN] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49};
@@ -35,38 +42,75 @@ int selection_sine = 0;
 int selection_idx = 0;
 char graph_str[DATA_SIZE*4];
 int backup[DATA_SIZE]={0,};
+int radio_sel = -1;
 
+bool chart_run = false;
 lv_obj_t *chart;
+lv_obj_t *time_label;
 lv_chart_series_t * point;
+
 void clear_chart() {
+    static lv_style_t style_chart_main;
+    static lv_style_t style_chart_serires;
+
+    lv_style_init(&style_chart_main);
+    lv_style_set_bg_color(&style_chart_main, lv_color_black());
+    lv_style_set_line_color(&style_chart_main, lv_color_black());
+
+    lv_style_init(&style_chart_serires);
+    lv_style_set_line_width(&style_chart_serires, 5);
+    //lv_style_set_radius(&style_chart_serires, 5);
+
     lv_obj_t *obj = lv_obj_get_parent(chart);
     lv_obj_del(chart);
-    chart = lv_chart_create(obj );
+    chart = lv_chart_create(obj);
+    lv_obj_set_style_pad_all(chart, 3, LV_PART_MAIN);
     lv_obj_set_size(chart, LV_PCT(100), LV_PCT(90));
     lv_obj_align(chart, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(chart, DATA_SIZE);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_X, 0, DATA_SIZE-1);
     lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
-    lv_obj_set_style_bg_color(chart, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_radius(chart, 0, LV_PART_INDICATOR);  // Set radius to 0 to hide points
-    lv_obj_set_style_border_width(chart, 0, LV_PART_INDICATOR); // Set border width to 0 to hide border
+    lv_obj_add_style(chart, &style_chart_main, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_style(chart, &style_chart_serires, LV_PART_ITEMS | LV_STATE_DEFAULT);
     point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
-    //lv_style_set_line_width(point, 10);
     memset(backup, 0, sizeof(backup));
+    
+    lv_chart_set_value_by_id(chart, point, 0, 0); // 모든 데이터 포인트를 0으로 설정
+    
+    lv_chart_refresh(chart); 
 }
 void update_chart(void) {
     static uint16_t index = 0;
-    // lv_chart_set_next_value(chart, point,graph_value[index]);
-    lv_chart_set_value_by_id(chart, point, index, selection_wave[selection_idx%selection_len]);
-    lv_chart_refresh(chart);
-    ESP_LOGE("CHART", "index: %d, value: %d", index, selection_wave[selection_idx%selection_len]);
-    backup[index] = selection_wave[selection_idx%selection_len];
-    if(index >= DATA_SIZE-1) {
-        clear_chart();
-        index %= DATA_SIZE;
+    if(chart_run) {
+        lv_chart_set_value_by_id(chart, point, index, selection_wave[selection_idx%selection_len]);
+        lv_chart_refresh(chart);
+        ESP_LOGE("CHART", "index: %d, value: %d", index, selection_wave[selection_idx%selection_len]);
+        backup[index] = selection_wave[selection_idx%selection_len];
+        if(index >= DATA_SIZE-1) {
+            clear_chart();
+            index = 0;
+        }
+        index++;
+        selection_idx++;  
     }
-    index++;
-    selection_idx++;    
+  
+}
+void update_timer(void) {
+    static uint32_t time = 0;
+    char time_str[16];
+    if(chart_run) {
+        time += 100;
+
+        uint32_t total_seconds = time / 1000;
+        uint32_t milliseconds = time % 1000;
+        uint32_t seconds = total_seconds % 60;
+        uint32_t minutes = (total_seconds / 60) % 60;
+        uint32_t hours = (total_seconds / 3600);
+        
+        snprintf(time_str, sizeof(time_str), "%02lu:%02lu:%02lu:%02lu", hours, minutes, seconds, milliseconds/10);
+        lv_label_set_text(time_label, time_str);
+    }
 }
 void print_memory_usage()
 {
@@ -201,6 +245,72 @@ void load_binary_btn_click(lv_event_t *e) {
     read_file("/spiffs/binary.bin", textarea, false);
 }
 
+void radio_selection_event(lv_event_t *e) {
+    uint32_t *active_id = lv_event_get_user_data(e);
+    lv_obj_t *cont = lv_event_get_current_target(e);
+    lv_obj_t *act_cb = lv_event_get_target(e);
+    lv_obj_t *old_cb;
+    if(*active_id != -1) {
+        old_cb = lv_obj_get_child(cont, *active_id);
+        lv_obj_clear_state(old_cb, LV_STATE_CHECKED);
+
+        if(*active_id == 0) {
+            selection_wave = saw_wave;
+            selection_len = SAW_WAVE_LEN;
+        } else if(*active_id == 1){
+            selection_wave = rectangle;
+            selection_len = RECTANGLE_LEN;
+        }  else if(*active_id == 2){
+            selection_wave = sine_wave;
+            selection_len = SINE_WAVE_LEN;
+        }
+        selection_idx = 0;
+    }
+    if(act_cb == cont) {
+        *active_id = -1;
+        return;
+    }
+
+    lv_obj_add_state(act_cb, LV_STATE_CHECKED);
+    *active_id = lv_obj_get_index(act_cb);
+
+    ESP_LOGE("RADIO","active id: %d", (int)*active_id);
+
+}
+void make_radio_btn(lv_obj_t *screen, const char *title, lv_style_t *style_radio, lv_style_t *style_radio_chk) {
+    lv_obj_t *obj = lv_checkbox_create(screen);
+    lv_checkbox_set_text(obj, title);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_style(obj, style_radio, LV_PART_INDICATOR);
+    lv_obj_add_style(obj, style_radio_chk, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    
+    lv_obj_set_flex_grow(obj, 1);
+    ESP_LOGE("RADIO", "%s", title);
+}
+
+void chart_timer_callback(lv_timer_t * timer) {
+    update_chart();
+}
+void timer_timer_callback(lv_timer_t *timer) {
+    update_timer();
+}
+void start_btn_click(lv_event_t *e) {
+    static lv_timer_t *chart_timer = NULL;
+    static lv_timer_t *timer_timer = NULL;
+    lv_obj_t *label = lv_event_get_user_data(e);
+    if(chart_run) {
+        lv_label_set_text(label, "Start");
+        chart_run = false;
+    } else {
+        lv_label_set_text(label, "Stop");
+        if(chart_timer == NULL)
+            chart_timer = lv_timer_create(chart_timer_callback, 50, NULL);
+        if(timer_timer == NULL)
+            chart_timer = lv_timer_create(timer_timer_callback, 100, NULL);
+        chart_run = true;
+    }
+}
+
 void for_text_btn_click(lv_event_t *e) {
     char temp_text[16];
 
@@ -223,75 +333,75 @@ void for_text_btn_click(lv_event_t *e) {
     lv_textarea_set_text(textarea, graph_str);
 }
 void clear_text_btn_click(lv_event_t *e) {
-    if(selection_sine == 0) {
-        selection_wave = saw_wave;
-        selection_len = SAW_WAVE_LEN;
-        selection_sine = 1;
-    } else if(selection_sine == 1){
-        selection_wave = rectangle;
-        selection_len = RECTANGLE_LEN;
-        selection_sine = 2; 
-    }  else if(selection_sine == 2){
-        selection_wave = sine_wave;
-        selection_len = SINE_WAVE_LEN;
-        selection_sine = 0; 
-    }
-    selection_idx = 0;
-    // lv_obj_t *obj = lv_event_get_target(e);
-    // lv_obj_t *textarea = lv_event_get_user_data(e);
+    lv_obj_t *obj = lv_event_get_target(e);
+    lv_obj_t *textarea = lv_event_get_user_data(e);
 
-    // lv_textarea_set_text(textarea, "");
-    // init_spiffs();
+    lv_textarea_set_text(textarea, "");
+    init_spiffs();
 }
 void design_init(lv_obj_t *screen) {
     lv_obj_t *main = lv_obj_create(screen);
     lv_obj_set_size(main, 800, 480);
     lv_obj_center(main);
+    lv_obj_set_style_pad_all(main, 0, LV_PART_MAIN);
     lv_obj_set_flex_flow(main, LV_FLEX_FLOW_COLUMN);
 
     lv_obj_t *chartView = lv_obj_create(main);
     lv_obj_set_size(chartView, LV_PCT(100), LV_PCT(50));
-
+    lv_obj_set_style_pad_all(chartView, 0, LV_PART_MAIN);
     // Chart Left Area
     lv_obj_t *chartView_left_area = lv_obj_create(chartView);
+    lv_obj_set_style_pad_all(chartView_left_area, 0, LV_PART_MAIN);
     lv_obj_set_size(chartView_left_area, LV_PCT(80), LV_PCT(100));
     lv_obj_align(chartView_left_area, LV_ALIGN_TOP_LEFT, 5, 5);
 
     chart = lv_chart_create(chartView_left_area);
     clear_chart();
-    // lv_obj_set_size(chart, LV_PCT(100), LV_PCT(90));
-    // lv_obj_align(chart, LV_ALIGN_TOP_LEFT, 0, 0);
-    // lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
-    // lv_chart_set_point_count(chart, DATA_SIZE);
-    // lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, -100, 100);
-    // point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
-
+    
     lv_obj_t *start_btn = lv_btn_create(chartView_left_area);
     lv_obj_set_size(start_btn, LV_PCT(30), LV_PCT(10));
     lv_obj_align(start_btn, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_t *start_btn_label = lv_label_create(start_btn);
     lv_label_set_text(start_btn_label, "Start");
     lv_obj_center(start_btn_label);
+    lv_obj_add_event_cb(start_btn, start_btn_click, LV_EVENT_CLICKED, start_btn_label);
+
+    lv_obj_t *radioarea = lv_obj_create(chartView_left_area);
+    lv_obj_set_flex_flow(radioarea, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(radioarea, LV_PCT(70), LV_PCT(10));
+    lv_obj_set_style_pad_all(radioarea, 0, LV_PART_MAIN);
+    lv_obj_align(radioarea, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    static lv_style_t style_radio;
+    static lv_style_t style_radio_chk;
+    lv_style_init(&style_radio);
+    lv_style_init(&style_radio_chk);
+    lv_style_set_radius(&style_radio, LV_RADIUS_CIRCLE);
+    lv_style_set_bg_color(&style_radio_chk, lv_palette_main(LV_PALETTE_BLUE));
+    lv_obj_add_event_cb(radioarea, radio_selection_event, LV_EVENT_CLICKED, &radio_sel);
+
+    for(int idx = 0; idx < 4; idx++)
+        make_radio_btn(radioarea, wave_title[idx], &style_radio, &style_radio_chk);
+    
 
     // Chart Right Area
     lv_obj_t *chartView_right_area = lv_obj_create(chartView);
-    lv_obj_set_size(chartView_right_area, LV_PCT(20), LV_PCT(100));
+    lv_obj_set_size(chartView_right_area, LV_PCT(18), LV_PCT(100));
     lv_obj_align(chartView_right_area, LV_ALIGN_TOP_RIGHT, 5, 5);
     lv_obj_set_flex_flow(chartView_right_area, LV_FLEX_FLOW_COLUMN);
 
-
     lv_obj_t *textView = lv_obj_create(main);
-    lv_obj_set_size(textView, LV_PCT(100), LV_PCT(50));
+    lv_obj_set_size(textView, LV_PCT(100), LV_PCT(47));
+    lv_obj_set_style_pad_all(textView, 0, LV_PART_MAIN);
 
     // Text Left Area
     lv_obj_t *textView_left_area = lv_obj_create(textView);
     lv_obj_set_size(textView_left_area, LV_PCT(80), LV_PCT(100));
     lv_obj_align(textView_left_area, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_pad_all(textView_left_area, 0, LV_PART_MAIN);
 
     lv_obj_t *textarea = lv_textarea_create(textView_left_area);
     lv_obj_set_size(textarea, LV_PCT(100), LV_PCT(80));
     lv_obj_align(textarea, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-
 
     // 순서 좀 바꿈 (charView 자식 객체)
     lv_obj_t *binary_save_btn = lv_btn_create(chartView_right_area);
@@ -330,9 +440,16 @@ void design_init(lv_obj_t *screen) {
 
     // Text Right Area
     lv_obj_t *textView_right_area = lv_obj_create(textView);
-    lv_obj_set_size(textView_right_area, LV_PCT(20), LV_PCT(100));
+    lv_obj_set_size(textView_right_area, LV_PCT(18), LV_PCT(100));
     lv_obj_align(textView_right_area, LV_ALIGN_TOP_RIGHT, 5, 5);
     lv_obj_set_flex_flow(textView_right_area, LV_FLEX_FLOW_COLUMN);
+
+    time_label = lv_label_create(textView_right_area);
+    lv_obj_set_size(time_label, LV_PCT(100), LV_PCT(30));
+    lv_obj_center(time_label);
+    lv_label_set_text(time_label, "00:00:00:00");
+    lv_obj_set_style_pad_all(time_label, 0, LV_PART_MAIN);
+
 
     lv_obj_t *text_save_btn = lv_btn_create(textView_right_area);
     lv_obj_set_size(text_save_btn, LV_PCT(100), LV_PCT(35));
@@ -357,30 +474,10 @@ void design_init(lv_obj_t *screen) {
     selection_wave = sine_wave;
 }
 
-void refresh_pulse_init_screen()
-{
-    // 객체 강제 새로 고침
-    lv_obj_invalidate(pulse_init_Screen);
-
-    // LVGL 태스크 핸들러 호출
-    lv_task_handler();
-
-    // 메모리 사용량 출력 (디버깅)
-    print_memory_usage();
-}
-void timer_callback(lv_timer_t * timer) {
-    update_chart();
-}
-
-void create_timer(void) {
-    lv_timer_create(timer_callback, 100, NULL); // Update every 100 ms (adjust as needed)
-}
-
 void pulse_Screen_init(void) {
     // init_spiffs();
     pulse_init_Screen = lv_obj_create(NULL);
-    lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);  // Flags
+    lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);
     design_init(pulse_init_Screen);
     print_memory_usage();
-    create_timer(); 
 }
