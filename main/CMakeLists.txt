@@ -19,7 +19,7 @@ idf_component_register(
     REQUIRES spi_flash
     REQUIRES nvs_flash
     REQUIRES spiffs
-
+    REQUIRES fatfs
 )
 # 파티션 테이블 파일 설정
 # set(partition_table_file "${CMAKE_SOURCE_DIR}/partitions.csv")

@@ -10,17 +10,18 @@
 #include <time.h>
 
 #include "../ui.h"
+#include "lvgl.h"
 #include "segment_font.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "esp_heap_caps.h"
+#include "esp_vfs_fat.h"
+#include "nvs_flash.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-
-
 
 
 #define SINE_WAVE_LEN 60
@@ -40,7 +41,7 @@ int saw_wave[SAW_WAVE_LEN] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,
 int rectangle[RECTANGLE_LEN] = {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50};
 
 int selection_len;
-int *selection_wave;
+int *selection_wave = NULL;
 int selection_sine = 0;
 int selection_idx = 0;
 char graph_str[DATA_SIZE*4];
@@ -51,6 +52,8 @@ bool chart_run = false;
 lv_obj_t *chart;
 lv_obj_t *time_label;
 lv_chart_series_t * point;
+static wl_handle_t s_wl_handle;
+static SemaphoreHandle_t xSpiSemaphore;
 
 void clear_chart() {
     static lv_style_t style_chart_main;
@@ -139,35 +142,53 @@ void print_memory_usage()
 }
 
 // File System
-void init_spiffs() {
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = "/spiffs",
-        .partition_label = NULL,
-        .max_files = 5,
-        .format_if_mount_failed = true
-    };
+// void init_spiffs() {
+//     heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
+//     esp_vfs_spiffs_conf_t conf = {
+//         .base_path = "/spiffs",
+//         .partition_label = NULL,
+//         .max_files = 5,
+//         .format_if_mount_failed = true
+//     };
 
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-        }
-        return;
-    }
-    size_t total = 0, used = 0;
-    ret = esp_spiffs_info(NULL, &total, &used);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
-    } else {
-        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
-    }
-    ESP_LOGI(TAG, "SPIFFS mounted successfully");
-}
+//     esp_err_t ret = esp_vfs_spiffs_register(&conf);
+//     if (ret != ESP_OK) {
+//         if (ret == ESP_FAIL) {
+//             ESP_LOGE(TAG, "Failed to mount or format filesystem");
+//         } else if (ret == ESP_ERR_NOT_FOUND) {
+//             ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+//         } else {
+//             ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+//         }
+//         return;
+//     }
+//     size_t total = 0, used = 0;
+//     ret = esp_spiffs_info(NULL, &total, &used);
+//     if (ret != ESP_OK) {
+//         ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+//     } else {
+//         ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+//     }
+//     ESP_LOGI(TAG, "SPIFFS mounted successfully");
+//     heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
+// }
+
+
 void write_file(const char *path, const char *data, bool type) { // type0 = binary, type1 = text
+    // lv_fs_file_t f;
+    // lv_fs_res_t res;
+
+    // res = lv_fs_open(&f, path, LV_FS_MODE_WR);
+    // if(res != LV_FS_RES_OK) {
+    //     ESP_LOGE("FS","Failed to open file for writing");
+    //     return;
+    // }
+    // size_t bytes_written = lv_fs_write(&f, data, strlen(data), NULL);
+    // if (bytes_written != strlen(data)) {
+    //     printf("Failed to write data to file\n");
+    // }
+    
+    // lv_fs_close(&f);
     printf("Save text btn In\n");
     FILE *f = fopen(path, type ? "w" : "wb");
     if(f == NULL) {
@@ -184,6 +205,7 @@ void write_file(const char *path, const char *data, bool type) { // type0 = bina
     
     fclose(f);
     ESP_LOGI(TAG, "File written successfully");
+    lv_obj_invalidate(pulse_init_Screen);
 }
 void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = binary, type1 = text
     FILE *f = fopen(path, type ? "r" : "rb");
@@ -191,23 +213,139 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
         ESP_LOGE(TAG, "Failed to open file for reading");
         return;
     }
-    char line[DATA_SIZE*6];
+    char *buffer = (char *)heap_caps_malloc(sizeof(graph_str) + 1, MALLOC_CAP_SPIRAM);
+    // fseek(f, 0, SEEK_END);
+    // size_t file_size = ftell(f);
+    // fseek(f, 0, SEEK_SET);
+    // char *psram_buffer = (char *)heap_caps_malloc(file_size + 1, MALLOC_CAP_SPIRAM);
+    // ESP_LOGI("PSRAM", "File content read into file_size: %d", (int)file_size);
+    // if(psram_buffer == NULL) {
+    //     ESP_LOGE("PSRAM", "Failed to allocate memory from PSRAM");
+    //     fclose(f);
+    //     return;
+    // }
+    // size_t bytes_read = fread(psram_buffer, 1, file_size, f);
+    // if(bytes_read != file_size) {
+    //     ESP_LOGE("PSRAM", "Failed to read the complete file");
+    //     free(psram_buffer);
+    //     fclose(f);
+    //     return;
+    // }
+    // psram_buffer[file_size] = '\0';
+    // ESP_LOGI("PSRAM", "File content read into file_size: %d", (int)bytes_read);
+    // ESP_LOGI("PSRAM", "File content read into PSRAM: %s", psram_buffer);
+    // free(psram_buffer);
+    // fclose(f);
+
+    // if(type) {
+    //     if (buffer == NULL) {
+    //         ESP_LOGE(TAG, "Failed to allocate memory from PSRAM");
+    //         fclose(f);
+    //         return;
+    //     }
+
+    //     fread(buffer, 1, sizeof(graph_str), f);
+    //     buffer[sizeof(graph_str)] = '\0';  // Null-terminate
+
+    //     // 파일 내용 처리
+    //     ESP_LOGI(TAG, "File content: %s", buffer);
+    // }
 
     if(!type) {
-        size_t bytesRead = fread(line, 1, sizeof(line) - 1, f); // null terminator를 위한 공간
+        size_t bytesRead = fread(graph_str, 1, sizeof(graph_str) - 1, f); // null terminator를 위한 공간
         if (bytesRead > 0) {
-            line[bytesRead] = '\0'; // 문자열의 끝에 null terminator 추가
-            ESP_LOGI(TAG, "Binary file content (first 50 bytes): %.*s", 50, line); // 첫 50바이트 출력
+            graph_str[bytesRead] = '\0'; // 문자열의 끝에 null terminator 추가 
+            ESP_LOGI(TAG, "Binary file content (first 50 bytes): %.*s", 50, graph_str); // 첫 50바이트 출력
         }
     } else {
-        while(fgets(line, sizeof(line), f)) {
-            ESP_LOGI(TAG, "File content: %s", line);
+        while(fgets(graph_str, sizeof(graph_str), f)) {
+            ESP_LOGI(TAG, "File content: %s", graph_str);
         }
     }
-
+    lv_textarea_set_text(textarea, buffer);
+    free(buffer);
     fclose(f);
-    lv_textarea_set_text(textarea, line);
+    lv_obj_invalidate(pulse_init_Screen);
+
+    // lv_fs_file_t f;
+    // lv_fs_res_t res;
+    // // lv_fs_res_t res;
+    // // lv_obj_t *file;
+    // char buffer[128];
+    // size_t bytes_read;
+
+    // res = lv_fs_open(&f, path, LV_FS_MODE_RD);
+    // if (res != LV_FS_RES_OK) {
+    //     printf("Failed to open file for reading\n");
+    //     return;
+    // }
+
+    // // 데이터 읽기
+    // bytes_read = lv_fs_read(&f, buffer, sizeof(buffer) - 1, NULL);
+    // if (bytes_read > 0) {
+    //     buffer[bytes_read] = '\0'; // 문자열 종료
+    //     printf("Read data: %s\n", buffer);
+    // } else {
+    //     printf("Failed to read data from file\n");
+    // }
+
+    // // 파일 닫기
+    // lv_fs_close(&f);
 }
+
+void init_fs() {
+    esp_err_t ret = nvs_flash_init();
+    if(ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    esp_vfs_fat_mount_config_t mount_config = {
+        .format_if_mount_failed = true,
+        .max_files = 5,
+        .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
+    };
+
+    ret = esp_vfs_fat_spiflash_mount("/spiflash", "storage", &mount_config, &s_wl_handle);
+    if(ret != ESP_OK) {
+        ESP_LOGE("FS", "Failed to mount FATFS (%s)", esp_err_to_name(ret));
+        return;
+    }
+    ESP_LOGI("FS", "Filesystem mounted");
+}
+
+void write_to_file(const char *file, const char *data)  {
+    if (xSemaphoreTake(xSpiSemaphore, portMAX_DELAY) == pdTRUE) {
+        FILE *f = fopen(file, "w");
+        if(f == NULL) {
+            ESP_LOGE("FS", "Failed to open file for writing");
+            return;
+        }
+        fprintf(f, "%s", data);
+        fclose(f);
+
+        ESP_LOGI("FS", "File written: %s", file);
+        xSemaphoreGive(xSpiSemaphore);
+    }
+}
+void read_to_file(const char *file, lv_obj_t *textarea) {
+    if (xSemaphoreTake(xSpiSemaphore, portMAX_DELAY) == pdTRUE) {
+        FILE *f = fopen(file, "r");
+        if(f == NULL) {
+            ESP_LOGE("FS", "Failed to open file for reading");
+            return;
+        }
+        char line[256];
+        while(fgets(line, sizeof(line), f) != NULL) {
+            ESP_LOGI("FS", "Read from file: %s", line);
+        }
+        lv_label_set_text(textarea, line);
+        fclose(f);
+        xSemaphoreGive(xSpiSemaphore);
+    }
+}
+
 
 // File Save & Load Button
 void save_text_btn_click(lv_event_t *e) {
@@ -225,12 +363,14 @@ void save_text_btn_click(lv_event_t *e) {
             break;
         }        
     }
-    write_file("/spiffs/test.txt", graph_str, true);
+    write_to_file("/spiflash/test.txt", graph_str);
+    // write_file("/spiffs/test.txt", graph_str, true);
 }
 void load_text_btn_click(lv_event_t *e) {
     lv_obj_t *textarea = lv_event_get_user_data(e);
-    printf("Load text btn In");
-    read_file("/spiffs/test.txt", textarea, true);
+    printf("Load text btn In\n");
+    read_to_file("/spiflash/test.txt", textarea);
+    // read_file("/spiffs/test.txt", textarea, true);
 }
 void save_binary_btn_click(lv_event_t *e) {
     char temp_text[16];
@@ -311,6 +451,10 @@ void start_btn_click(lv_event_t *e) {
     static lv_timer_t *chart_timer = NULL;
     static lv_timer_t *timer_timer = NULL;
     lv_obj_t *label = lv_event_get_user_data(e);
+    
+    if(radio_sel == -1)
+        return;
+    
     if(chart_run) {
         lv_label_set_text(label, "Start");
         chart_run = false;
@@ -346,12 +490,12 @@ void for_text_btn_click(lv_event_t *e) {
     lv_textarea_set_text(textarea, graph_str);
 }
 void clear_text_btn_click(lv_event_t *e) {
-    init_spiffs();
+    // init_spiffs();
     lv_obj_t *obj = lv_event_get_target(e);
     lv_obj_t *textarea = lv_event_get_user_data(e);
 
     lv_textarea_set_text(textarea, "");
-    init_spiffs();
+    // init_spiffs();
 }
 void print_font_info(const lv_font_t * font) {
     // 폰트가 NULL인지 확인
@@ -401,8 +545,8 @@ void print_font_info(const lv_font_t * font) {
     }
 }
 
-void design_init(lv_obj_t *screen) {
-    lv_obj_t *main = lv_obj_create(screen);
+void design_init() {
+    lv_obj_t *main = lv_obj_create(pulse_init_Screen);
     lv_obj_set_size(main, 800, 480);
     lv_obj_center(main);
     lv_obj_set_style_pad_all(main, 0, LV_PART_MAIN);
@@ -535,11 +679,37 @@ void design_init(lv_obj_t *screen) {
     lv_obj_set_flex_align(textView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
 }
 
+void spiffs_init_task(void *pvParameter) {
+    //init_spiffs();  // SPIFFS 초기화 함수 호출
+    // SPIFFS 초기화가 완료된 후 UI 업데이트
+    xTaskNotifyGive((TaskHandle_t)pvParameter);  // 메인 스레드에 알림
+    vTaskDelete(NULL);  // 작업 완료 후 스레드 종료
+}
+
 void pulse_Screen_init(void) {
+    xSpiSemaphore = xSemaphoreCreateMutex();
+
     // init_spiffs();
+    // init_fatfs();
+    printf("1 \n");
+    print_memory_usage();
+    init_fs();
+    printf("2 \n");
+    print_memory_usage();
     srand(time(NULL));
+    printf("============================\n");
     pulse_init_Screen = lv_obj_create(NULL);
     lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);
+    // heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
     design_init(pulse_init_Screen);
+    printf("3 \n");
     print_memory_usage();
+    // print_memory_usage();
+    //xTaskCreate(spiffs_init_task, "spiffs_init_task", 4096, NULL, 5, NULL);
+
+    // TaskHandle_t spiffs_task_handle;
+    // xTaskCreate(spiffs_init_task, "spiffs_init_task", 8192, (void*)&spiffs_task_handle, 5, &spiffs_task_handle);
+    // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    // design_init(pulse_init_Screen);
+    // lv_refr_now(NULL);
 }

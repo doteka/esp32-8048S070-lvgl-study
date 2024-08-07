@@ -7,6 +7,8 @@
         "ui.h": "c",
         "lvgl.h": "c",
         "simple_card_game_var.h": "c",
-        "segment_font.h": "c"
+        "segment_font.h": "c",
+        "esp_lcd_touch_gt911.h": "c",
+        "sdkconfig.h": "c"
     }
 }
