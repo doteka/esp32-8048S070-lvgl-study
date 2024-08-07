@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "main",
-    "project_version":    "47cde6a-dirty",
+    "project_version":    "32e1665-dirty",
     "project_path":       "C:/esp32/esp_idf_lvgl_ver",
     "idf_path":           "C:/esp/v5.1.4/esp-idf",
     "build_dir":          "C:/esp32/esp_idf_lvgl_ver/build",
@@ -830,12 +830,12 @@
             "dir": "C:/esp32/esp_idf_lvgl_ver/main",
             "type": "LIBRARY",
             "lib": "__idf_main",
-            "reqs": [ "spi_flash", "nvs_flash", "spiffs", "fatfs" ],
+            "reqs": [ "spi_flash", "nvs_flash", "spiffs", "fatfs", "vfs" ],
             "priv_reqs": [ "espressif__esp_lcd_touch_gt911", "lvgl__lvgl" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp_lcd_touch_gt911", "lvgl__lvgl" ],
             "file": "C:/esp32/esp_idf_lvgl_ver/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/esp32/esp_idf_lvgl_ver/main/main.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/ui.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/ui_helpers.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/ui_Screen1.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/ui_Screen2.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/modal.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/setup_set.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/tabview_setup.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/tabview_grid.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/simple_card_game.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/simple_card_game_init.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/charts.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/pulse.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/segment_font.c" ],
+            "sources": [ "C:/esp32/esp_idf_lvgl_ver/main/main.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/ui.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/ui_helpers.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/ui_Screen1.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/ui_Screen2.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/modal.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/setup_set.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/tabview_setup.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/tabview_grid.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/simple_card_game.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/simple_card_game_init.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/charts.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/pulse.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/segment_font.c", "C:/esp32/esp_idf_lvgl_ver/main/ui/screens/fs_test.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {
@@ -2118,7 +2118,7 @@
             "prefix": "idf",
             "dir": "C:/esp32/esp_idf_lvgl_ver/main",
             "lib": "__idf_main",
-            "reqs": [ "spi_flash", "nvs_flash", "spiffs", "fatfs" ],
+            "reqs": [ "spi_flash", "nvs_flash", "spiffs", "fatfs", "vfs" ],
             "priv_reqs": [ "espressif__esp_lcd_touch_gt911", "lvgl__lvgl" ],
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__esp_lcd_touch_gt911", "lvgl__lvgl" ],

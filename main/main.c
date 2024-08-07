@@ -18,6 +18,8 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "esp_heap_caps.h"
+#include "esp_vfs.h"
+
 
 #if CONFIG_EXAMPLE_LCD_TOUCH_ENABLED
 #include "driver/i2c.h"
@@ -140,102 +142,37 @@ static void example_increase_lvgl_tick(void *arg) {
   /* Tell LVGL how many milliseconds has elapsed */
   lv_tick_inc(LVGL_TICK_PERIOD_MS);
 }
-void init_spiffs() {
-    heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = "/spiffs",
-        .partition_label = "spiffs",
-        .max_files = 5,
-        .format_if_mount_failed = true
-    };
+// void init_spiffs() {
+//     heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
+//     esp_vfs_spiffs_conf_t conf = {
+//         .base_path = "/spiffs",
+//         .partition_label = "spiffs",
+//         .max_files = 5,
+//         .format_if_mount_failed = true
+//     };
 
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-        }
-        return;
-    }
+//     esp_err_t ret = esp_vfs_spiffs_register(&conf);
+//     if (ret != ESP_OK) {
+//         if (ret == ESP_FAIL) {
+//             ESP_LOGE(TAG, "Failed to mount or format filesystem");
+//         } else if (ret == ESP_ERR_NOT_FOUND) {
+//             ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+//         } else {
+//             ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+//         }
+//         return;
+//     }
 
-    size_t total = 0, used = 0;
-    ret = esp_spiffs_info("spiffs", &total, &used);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
-    } else {
-        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
-    }
-    ESP_LOGI(TAG, "SPIFFS mounted successfully");
-    heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
-}
-
-lv_fs_res_t my_fs_open(void *file_p, const char *path, lv_fs_mode_t mode) {
-    FILE *f = NULL;
-
-    if (mode == LV_FS_MODE_WR) {
-        f = fopen(path, "wb");
-    } else if (mode == LV_FS_MODE_RD) {
-        f = fopen(path, "rb");
-    }
-
-    if (f == NULL) {
-        return LV_FS_RES_UNKNOWN;
-    }
-
-    *(FILE **)file_p = f;
-    return LV_FS_RES_OK;
-}
-
-lv_fs_res_t my_fs_close(void *file_p) {
-    FILE *f = *(FILE **)file_p;
-    fclose(f);
-    return LV_FS_RES_OK;
-}
-
-lv_fs_res_t my_fs_read(void *file_p, void *buf, uint32_t btr, uint32_t *br) {
-    FILE *f = *(FILE **)file_p;
-    *br = fread(buf, 1, btr, f);
-    return LV_FS_RES_OK;
-}
-
-lv_fs_res_t my_fs_write(void *file_p, const void *buf, uint32_t btw, uint32_t *bw) {
-    FILE *f = *(FILE **)file_p;
-    *bw = fwrite(buf, 1, btw, f);
-    return LV_FS_RES_OK;
-}
-
-lv_fs_res_t my_fs_seek(void *file_p, uint32_t pos, lv_fs_whence_t whence) {
-    FILE *f = *(FILE **)file_p;
-    int w = SEEK_SET;
-    if (whence == LV_FS_SEEK_CUR) w = SEEK_CUR;
-    else if (whence == LV_FS_SEEK_END) w = SEEK_END;
-
-    fseek(f, pos, w);
-    return LV_FS_RES_OK;
-}
-
-lv_fs_res_t my_fs_tell(void *file_p, uint32_t *pos) {
-    FILE *f = *(FILE **)file_p;
-    *pos = ftell(f);
-    return LV_FS_RES_OK;
-}
-
-void lv_fs_init(lv_fs_drv_t drv) {
-
-    lv_fs_drv_init(&drv);
-    drv.letter = '0'; // 드라이브 문자 (예: '0'은 기본 드라이브)
-    drv.open_cb = my_fs_open;
-    drv.close_cb = my_fs_close;
-    drv.read_cb = my_fs_read;
-    drv.write_cb = my_fs_write;
-    drv.seek_cb = my_fs_seek;
-    drv.tell_cb = my_fs_tell;
-
-    lv_fs_drv_register(&drv);
-}
+//     size_t total = 0, used = 0;
+//     ret = esp_spiffs_info("spiffs", &total, &used);
+//     if (ret != ESP_OK) {
+//         ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+//     } else {
+//         ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+//     }
+//     ESP_LOGI(TAG, "SPIFFS mounted successfully");
+//     heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
+// }
 
 
 void app_main(void) {
@@ -244,6 +181,7 @@ void app_main(void) {
   static lv_disp_drv_t disp_drv; // contains callback functions
   static lv_fs_drv_t fs_drv;
   // init_spiffs();
+  // lvgl_fs_init();
 #if CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
   ESP_LOGI(TAG, "Create semaphores");
   sem_vsync_end = xSemaphoreCreateBinary();
@@ -292,7 +230,7 @@ void app_main(void) {
 #if CONFIG_EXAMPLE_USE_BOUNCE_BUFFER
    .bounce_buffer_size_px = 10 * h_resolution,
 #else
-   .bounce_buffer_size_px = (size_t)NULL,
+   .bounce_buffer_size_px = LCD_H_RES*8,
 #endif
    .sram_trans_align = (size_t)NULL,
    .psram_trans_align = 64,

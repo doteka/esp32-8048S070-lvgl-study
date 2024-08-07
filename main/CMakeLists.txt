@@ -14,12 +14,14 @@ idf_component_register(
         "ui/screens/charts.c"
         "ui/screens/pulse.c"
         "ui/screens/segment_font.c"
+        "ui/screens/fs_test.c"
     INCLUDE_DIRS
         "."
     REQUIRES spi_flash
     REQUIRES nvs_flash
     REQUIRES spiffs
     REQUIRES fatfs
+    REQUIRES vfs
 )
 # 파티션 테이블 파일 설정
 # set(partition_table_file "${CMAKE_SOURCE_DIR}/partitions.csv")

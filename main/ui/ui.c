@@ -61,6 +61,7 @@ void simple_card_game_init(void);
 void simple_card_game_main_Screen(void);
 void charts_Screen_init(void);
 void pulse_Screen_init(void);
+void fs_test_Screen_init(void);
 
 lv_obj_t *ui_Screen1;
 lv_obj_t *ui_Button2;
@@ -87,6 +88,7 @@ lv_obj_t *simple_card_game_Screen;
 lv_obj_t *simple_card_game_init_Screen;
 lv_obj_t *charts_init_Screen;
 lv_obj_t *pulse_init_Screen;
+lv_obj_t *fs_test_Screen;
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
 #if LV_COLOR_DEPTH != 16
