@@ -20,7 +20,6 @@
 #include "esp_heap_caps.h"
 #include "esp_vfs.h"
 
-
 #if CONFIG_EXAMPLE_LCD_TOUCH_ENABLED
 #include "driver/i2c.h"
 #include "esp_lcd_touch_gt911.h"

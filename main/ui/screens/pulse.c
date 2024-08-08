@@ -11,7 +11,7 @@
 
 #include "../ui.h"
 #include "lvgl.h"
-#include "segment_font.h"
+#include "segment_font_20size.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
@@ -50,6 +50,7 @@ int radio_sel = -1;
 
 bool chart_run = false;
 lv_obj_t *chart;
+lv_style_t font_style;
 lv_obj_t *time_label;
 lv_chart_series_t * point;
 static wl_handle_t s_wl_handle;
@@ -546,17 +547,22 @@ void design_init() {
     lv_obj_align(textView_right_area, LV_ALIGN_TOP_RIGHT, 5, 5);
     lv_obj_set_flex_flow(textView_right_area, LV_FLEX_FLOW_COLUMN);
 
+    lv_style_init(&font_style);
+    lv_style_set_text_font(&font_style, &segment_font_20size);
+    // lv_style_set_text_font(&font_style, LV_FONT_DEFAULT);
+
     time_label = lv_label_create(textView_right_area);
-    lv_obj_set_size(time_label, LV_PCT(100), LV_PCT(30));
+    
+    lv_obj_add_style(time_label, &font_style, LV_PART_MAIN);
+
+    lv_obj_set_size(time_label, LV_PCT(100), LV_PCT(28));
     lv_obj_center(time_label);
     lv_label_set_text(time_label, "00:00:00:00");
-    lv_obj_set_style_pad_all(time_label, 0, LV_PART_MAIN);
-    // lv_obj_set_style_text_font(time_label, &segment_font, 0);
-    print_font_info(&segment_font);
 
+    lv_obj_set_style_pad_all(time_label, 0, LV_PART_MAIN);
 
     lv_obj_t *text_save_btn = lv_btn_create(textView_right_area);
-    lv_obj_set_size(text_save_btn, LV_PCT(100), LV_PCT(35));
+    lv_obj_set_size(text_save_btn, LV_PCT(100), LV_PCT(28));
     lv_obj_center(text_save_btn);
     lv_obj_add_event_cb(text_save_btn, save_text_btn_click, LV_EVENT_CLICKED, textarea);
     lv_obj_t *text_save_btn_label = lv_label_create(text_save_btn);
@@ -564,7 +570,7 @@ void design_init() {
     lv_obj_center(text_save_btn_label);
 
     lv_obj_t *text_open_btn = lv_btn_create(textView_right_area);
-    lv_obj_set_size(text_open_btn, LV_PCT(100), LV_PCT(35));
+    lv_obj_set_size(text_open_btn, LV_PCT(100), LV_PCT(30));
     lv_obj_center(text_open_btn);
     lv_obj_add_event_cb(text_open_btn, load_text_btn_click, LV_EVENT_CLICKED, textarea);
     lv_obj_t *text_open_btn_label = lv_label_create(text_open_btn);
@@ -573,13 +579,6 @@ void design_init() {
 
     lv_obj_set_flex_align(chartView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
     lv_obj_set_flex_align(textView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
-}
-
-void spiffs_init_task(void *pvParameter) {
-    //init_spiffs();  // SPIFFS 초기화 함수 호출
-    // SPIFFS 초기화가 완료된 후 UI 업데이트
-    xTaskNotifyGive((TaskHandle_t)pvParameter);  // 메인 스레드에 알림
-    vTaskDelete(NULL);  // 작업 완료 후 스레드 종료
 }
 
 void pulse_Screen_init(void) {
@@ -592,12 +591,4 @@ void pulse_Screen_init(void) {
     // heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
     design_init(pulse_init_Screen);
     print_memory_usage();
-    // print_memory_usage();
-    //xTaskCreate(spiffs_init_task, "spiffs_init_task", 4096, NULL, 5, NULL);
-
-    // TaskHandle_t spiffs_task_handle;
-    // xTaskCreate(spiffs_init_task, "spiffs_init_task", 8192, (void*)&spiffs_task_handle, 5, &spiffs_task_handle);
-    // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    // design_init(pulse_init_Screen);
-    // lv_refr_now(NULL);
 }

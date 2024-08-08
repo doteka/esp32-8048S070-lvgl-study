@@ -11,7 +11,6 @@
 
 #include "../ui.h"
 #include "lvgl.h"
-#include "segment_font.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"

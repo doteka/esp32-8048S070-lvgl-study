@@ -22,6 +22,7 @@
         "semphr.h": "c",
         "array": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "segment_font_25size.h": "c"
     }
 }

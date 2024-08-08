@@ -13,7 +13,7 @@ idf_component_register(
         "ui/screens/simple_card_game_init.c"
         "ui/screens/charts.c"
         "ui/screens/pulse.c"
-        "ui/screens/segment_font.c"
+        "ui/screens/segment_font_20size.c"
         "ui/screens/fs_test.c"
     INCLUDE_DIRS
         "."
