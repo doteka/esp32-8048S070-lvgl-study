@@ -19,9 +19,9 @@
 #include "esp_vfs_fat.h"
 #include "nvs_flash.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/task.h"
+// #include "freertos/semphr.h"
 
 
 #define SINE_WAVE_LEN 60
@@ -53,8 +53,6 @@ lv_obj_t *chart;
 lv_style_t font_style;
 lv_obj_t *time_label;
 lv_chart_series_t * point;
-static wl_handle_t s_wl_handle;
-static SemaphoreHandle_t xSpiSemaphore;
 
 void clear_chart() {
     static lv_style_t style_chart_main;
@@ -222,14 +220,10 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
             int idx = 0;
             while(token != NULL && idx < DATA_SIZE) {
                 backup[idx] = atoi(token);
-                // ESP_LOGE("FS", "idx: %d, value : %d, token : %d", idx, backup[idx], atoi(token));
                 lv_chart_set_value_by_id(chart, point, idx, backup[idx]);
                 token = strtok(NULL, ",");
                 idx++;
-            }
-            // lv_chart_set_all_value(chart, point, (lv_coord_t *)backup);
-            // lv_chart_set_ext_y_array(chart, point, (lv_coord_t *)backup);
-            lv_chart_refresh(chart); 
+            }lv_chart_refresh(chart); 
         }
     } else {
         size_t totalBytesRead = 0;
@@ -260,7 +254,6 @@ void save_text_btn_click(lv_event_t *e) {
             break;
         }        
     }
-    // write_to_file("/spiflash/test.txt", graph_str);
     write_file("/spiffs/test.txt", graph_str, true);
 }
 void load_text_btn_click(lv_event_t *e) {
@@ -386,60 +379,11 @@ void for_text_btn_click(lv_event_t *e) {
     }
     lv_textarea_set_text(textarea, graph_str);
 }
-void clear_text_btn_click(lv_event_t *e) {
-    // init_spiffs();
+void clear_text_btn_click(lv_event_t *e)  {
     lv_obj_t *obj = lv_event_get_target(e);
     lv_obj_t *textarea = lv_event_get_user_data(e);
 
     lv_textarea_set_text(textarea, "");
-    // init_spiffs();
-}
-void print_font_info(const lv_font_t * font) {
-    // 폰트가 NULL인지 확인
-    if (font == NULL) {
-        printf("Font is NULL\n");
-        return;
-    }
-
-    // 폰트의 기본 정보 출력
-    printf("Font Information:\n");
-    printf("  - Line Height: %d\n", font->line_height);
-    printf("  - Base Line: %d\n", font->base_line);
-
-    // 버전 체크 후 추가 정보 출력
-    #if LVGL_VERSION_MAJOR >= 8
-    printf("  - Underline Position: %d\n", font->underline_position);
-    printf("  - Underline Thickness: %d\n", font->underline_thickness);
-    #endif
-
-    // 글리프 정보 출력
-    if (font->dsc) {
-        const lv_font_fmt_txt_dsc_t * dsc = font->dsc;
-        printf("  Glyph Bitmap:\n");
-        printf("    - Number of Glyphs: %d\n", dsc->cmap_num);
-        printf("    - Bitmap Format: %d\n", dsc->bitmap_format);
-        printf("    - Bpp: %d\n", dsc->bpp);
-        printf("    - Kerning Scale: %d\n", dsc->kern_scale);
-        printf("    - Kerning Classes: %d\n", dsc->kern_classes);
-
-        if (dsc->glyph_bitmap) {
-            printf("    - Glyph Bitmap Address: %p\n", (void *)dsc->glyph_bitmap);
-        }
-        if (dsc->glyph_dsc) {
-            printf("    - Glyph Description Address: %p\n", (void *)dsc->glyph_dsc);
-        }
-        if (dsc->cmaps) {
-            printf("    - Cmaps Address: %p\n", (void *)dsc->cmaps);
-        }
-        if (dsc->kern_dsc) {
-            printf("    - Kerning Descriptor Address: %p\n", (void *)dsc->kern_dsc);
-        }
-        if (dsc->cache) {
-            printf("    - Glyph Cache Address: %p\n", (void *)dsc->cache);
-        }
-    } else {
-        printf("Font description (dsc) is NULL\n");
-    }
 }
 
 void design_init() {
@@ -448,15 +392,18 @@ void design_init() {
     lv_obj_center(main);
     lv_obj_set_style_pad_all(main, 0, LV_PART_MAIN);
     lv_obj_set_flex_flow(main, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_border_width(main, 0, LV_PART_MAIN);
 
     lv_obj_t *chartView = lv_obj_create(main);
     lv_obj_set_size(chartView, LV_PCT(100), LV_PCT(50));
     lv_obj_set_style_pad_all(chartView, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(chartView, 0, LV_PART_MAIN);
     // Chart Left Area
     lv_obj_t *chartView_left_area = lv_obj_create(chartView);
     lv_obj_set_style_pad_all(chartView_left_area, 0, LV_PART_MAIN);
     lv_obj_set_size(chartView_left_area, LV_PCT(80), LV_PCT(100));
     lv_obj_align(chartView_left_area, LV_ALIGN_TOP_LEFT, 5, 5);
+    lv_obj_set_style_border_width(chartView_left_area, 0, LV_PART_MAIN);
 
     chart = lv_chart_create(chartView_left_area);
     clear_chart();
@@ -474,6 +421,7 @@ void design_init() {
     lv_obj_set_size(radioarea, LV_PCT(70), LV_PCT(10));
     lv_obj_set_style_pad_all(radioarea, 0, LV_PART_MAIN);
     lv_obj_align(radioarea, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_set_style_border_width(radioarea, 0, LV_PART_MAIN);
     static lv_style_t style_radio;
     static lv_style_t style_radio_chk;
     lv_style_init(&style_radio);
@@ -491,16 +439,19 @@ void design_init() {
     lv_obj_set_size(chartView_right_area, LV_PCT(18), LV_PCT(100));
     lv_obj_align(chartView_right_area, LV_ALIGN_TOP_RIGHT, 5, 5);
     lv_obj_set_flex_flow(chartView_right_area, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_border_width(chartView_right_area, 0, LV_PART_MAIN);
 
     lv_obj_t *textView = lv_obj_create(main);
     lv_obj_set_size(textView, LV_PCT(100), LV_PCT(47));
     lv_obj_set_style_pad_all(textView, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(textView, 0, LV_PART_MAIN);
 
     // Text Left Area
     lv_obj_t *textView_left_area = lv_obj_create(textView);
     lv_obj_set_size(textView_left_area, LV_PCT(80), LV_PCT(100));
     lv_obj_align(textView_left_area, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_set_style_pad_all(textView_left_area, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(textView_left_area, 0, LV_PART_MAIN);
 
     lv_obj_t *textarea = lv_textarea_create(textView_left_area);
     lv_obj_set_size(textarea, LV_PCT(100), LV_PCT(80));
@@ -508,7 +459,7 @@ void design_init() {
 
     // 순서 좀 바꿈 (charView 자식 객체)
     lv_obj_t *binary_save_btn = lv_btn_create(chartView_right_area);
-    lv_obj_set_size(binary_save_btn, LV_PCT(100), LV_PCT(35));
+    lv_obj_set_size(binary_save_btn, LV_PCT(100), LV_PCT(25));
     lv_obj_center(binary_save_btn);
     lv_obj_add_event_cb(binary_save_btn, save_binary_btn_click, LV_EVENT_CLICKED, textarea);
     lv_obj_t *binary_save_btn_label = lv_label_create(binary_save_btn);
@@ -516,7 +467,7 @@ void design_init() {
     lv_obj_center(binary_save_btn_label);
 
     lv_obj_t *binary_open_btn = lv_btn_create(chartView_right_area);
-    lv_obj_set_size(binary_open_btn, LV_PCT(100), LV_PCT(35));
+    lv_obj_set_size(binary_open_btn, LV_PCT(100), LV_PCT(25));
     lv_obj_center(binary_open_btn);
     lv_obj_add_event_cb(binary_open_btn, load_binary_btn_click, LV_EVENT_CLICKED, textarea);
     lv_obj_t *binary_open_btn_label = lv_label_create(binary_open_btn);
@@ -530,7 +481,7 @@ void design_init() {
     lv_obj_align(for_text_btn, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_add_event_cb(for_text_btn, for_text_btn_click, LV_EVENT_CLICKED, textarea);
     lv_obj_t *for_text_btn_label = lv_label_create(for_text_btn);
-    lv_label_set_text(for_text_btn_label, "For Text");
+    lv_label_set_text(for_text_btn_label, "Convert Text");
     lv_obj_center(for_text_btn_label);
 
     lv_obj_t *clear_text_btn = lv_btn_create(textView_left_area);
@@ -546,6 +497,7 @@ void design_init() {
     lv_obj_set_size(textView_right_area, LV_PCT(18), LV_PCT(100));
     lv_obj_align(textView_right_area, LV_ALIGN_TOP_RIGHT, 5, 5);
     lv_obj_set_flex_flow(textView_right_area, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_border_width(textView_right_area, 0, LV_PART_MAIN);
 
     lv_style_init(&font_style);
     lv_style_set_text_font(&font_style, &segment_font_20size);
@@ -582,13 +534,10 @@ void design_init() {
 }
 
 void pulse_Screen_init(void) {
-
     init_spiffs();
     srand(time(NULL));
-    printf("============================\n");
     pulse_init_Screen = lv_obj_create(NULL);
     lv_obj_clear_flag(pulse_init_Screen, LV_OBJ_FLAG_SCROLLABLE);
-    // heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
     design_init(pulse_init_Screen);
     print_memory_usage();
 }
