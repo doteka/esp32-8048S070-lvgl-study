@@ -555,6 +555,49 @@ void lv_canvas_draw_rect(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord
     lv_obj_invalidate(canvas);
 }
 
+void custom_lv_canvas_draw_rect(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord_t w, lv_coord_t h,
+                         const lv_draw_rect_dsc_t * draw_dsc)
+{
+    LV_ASSERT_OBJ(canvas, MY_CLASS);
+
+    lv_img_dsc_t * dsc = lv_canvas_get_img(canvas);
+
+    if(dsc->header.cf >= LV_IMG_CF_INDEXED_1BIT && dsc->header.cf <= LV_IMG_CF_INDEXED_8BIT) {
+        LV_LOG_WARN("lv_canvas_draw_rect: can't draw to LV_IMG_CF_INDEXED canvas");
+        return;
+    }
+
+    /*Create a dummy display to fool the lv_draw function.
+     *It will think it draws to real screen.*/
+    lv_disp_t fake_disp;
+    lv_disp_drv_t driver;
+    lv_area_t clip_area;
+    init_fake_disp(canvas, &fake_disp, &driver, &clip_area);
+
+    lv_disp_t * refr_ori = _lv_refr_get_disp_refreshing();
+    _lv_refr_set_disp_refreshing(&fake_disp);
+
+    /*Disable anti-aliasing if drawing with transparent color to chroma keyed canvas*/
+    lv_color_t ctransp = LV_COLOR_CHROMA_KEY;
+    if(dsc->header.cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED &&
+       draw_dsc->bg_color.full == ctransp.full) {
+        fake_disp.driver->antialiasing = 0;
+    }
+
+    lv_area_t coords;
+    coords.x1 = x;
+    coords.y1 = y;
+    coords.x2 = x + w - 1;
+    coords.y2 = y + h - 1;
+
+    lv_draw_rect(driver.draw_ctx, draw_dsc, &coords);
+
+    _lv_refr_set_disp_refreshing(refr_ori);
+
+    deinit_fake_disp(canvas, &fake_disp);
+
+}
+
 void lv_canvas_draw_text(lv_obj_t * canvas, lv_coord_t x, lv_coord_t y, lv_coord_t max_w,
                          lv_draw_label_dsc_t * draw_dsc, const char * txt)
 {

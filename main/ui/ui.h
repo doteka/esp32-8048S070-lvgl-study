@@ -27,6 +27,8 @@ void simple_card_game_main_Screen(void);
 void charts_Screen_init(void);
 void pulse_Screen_init(void);
 void fs_test_Screen_init(void);
+void pulse_ver2_Screen_init(void);
+void canvas_exm_Screen(void);
 
 extern lv_obj_t *ui_Screen1;
 extern lv_obj_t *ui_Screen2;
@@ -55,6 +57,8 @@ extern lv_obj_t *simple_card_game_init_Screen;
 extern lv_obj_t *charts_init_Screen;
 extern lv_obj_t *pulse_init_Screen;
 extern lv_obj_t *fs_test_Screen;
+extern lv_obj_t *pulse_ver2_init_Screen;
+extern lv_obj_t *canvas_exm_Screen_init_Screen;
 
 void ui_init(lv_disp_t *);
 

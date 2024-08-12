@@ -13,8 +13,10 @@ idf_component_register(
         "ui/screens/simple_card_game_init.c"
         "ui/screens/charts.c"
         "ui/screens/pulse.c"
+        "ui/screens/pulse_ver2.c"
         "ui/screens/segment_font_20size.c"
         "ui/screens/fs_test.c"
+        "ui/screens/canvas_exm.c"
     INCLUDE_DIRS
         "."
     REQUIRES spi_flash

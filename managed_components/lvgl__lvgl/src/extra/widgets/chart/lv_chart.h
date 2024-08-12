@@ -390,6 +390,8 @@ void lv_chart_set_next_value2(lv_obj_t * obj, lv_chart_series_t * ser, lv_coord_
  * @param value   value to assign to array point
  */
 void lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t id, lv_coord_t value);
+void custom_lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t id, lv_coord_t value);
+void custom_lv_chart_clear_all_points(lv_obj_t * obj);
 
 /**
  * Set an individual point's x and y value of a chart's series directly based on its index

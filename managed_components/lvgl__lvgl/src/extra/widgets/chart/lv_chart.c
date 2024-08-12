@@ -573,6 +573,31 @@ void lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t 
     invalidate_point(obj, id);
 }
 
+void custom_lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t id, lv_coord_t value)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    LV_ASSERT_NULL(ser);
+    lv_chart_t * chart  = (lv_chart_t *)obj;
+
+    if(id >= chart->point_cnt) return;
+    ser->y_points[id] = value;
+}
+void custom_lv_chart_clear_all_points(lv_obj_t * obj)
+{
+    LV_ASSERT_OBJ(obj, lv_chart_t);
+    
+    lv_chart_t * chart = (lv_chart_t *)obj;
+    lv_chart_series_t * ser;
+
+    _LV_LL_READ(&chart->series_ll, ser) {
+        for(uint16_t i = 0; i < chart->point_cnt; i++) {
+            ser->y_points[i] = 0;
+        }
+    }
+
+    lv_obj_invalidate(obj);
+}
+
 void lv_chart_set_value_by_id2(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t id, lv_coord_t x_value,
                                lv_coord_t y_value)
 {

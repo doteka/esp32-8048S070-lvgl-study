@@ -23,6 +23,7 @@
         "array": "c",
         "string": "c",
         "string_view": "c",
-        "segment_font_25size.h": "c"
+        "segment_font_25size.h": "c",
+        "cmath": "c"
     }
 }
