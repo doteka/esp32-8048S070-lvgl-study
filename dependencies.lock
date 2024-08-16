@@ -15,10 +15,11 @@ dependencies:
       type: idf
     version: 5.1.4
   lvgl/lvgl:
-    component_hash: d7c1ac037ae6e85d94897f807d6e7ba0946a83e720074fc95a4f6241da9f9f53
+    component_hash: null
     source:
-      type: service
+      path: C:\esp32\esp_idf_lvgl_ver\components\lvgl__lvgl
+      type: local
     version: 8.4.0
-manifest_hash: b745eff55d7a6c1e3f5650e92159148561b1913c05c7e528baa94a9f589db10a
+manifest_hash: 546ac6e8dccdfd92a7cb85d6749ed36b4da3471ecf74d50fb3838f6778c254d6
 target: esp32s3
 version: 1.0.0

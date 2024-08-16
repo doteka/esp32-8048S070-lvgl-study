@@ -581,6 +581,41 @@ void custom_lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, ui
 
     if(id >= chart->point_cnt) return;
     ser->y_points[id] = value;
+
+}
+
+static void custom_invalidate_point(lv_obj_t * obj, uint16_t i)
+{
+    lv_chart_t * chart  = (lv_chart_t *)obj;
+    if(i >= chart->point_cnt) return;
+
+    lv_coord_t w  = ((int32_t)lv_obj_get_content_width(obj) * chart->zoom_x) >> 8;
+    lv_coord_t scroll_left = lv_obj_get_scroll_left(obj);
+
+    if(chart->update_mode == LV_CHART_UPDATE_MODE_SHIFT) {
+        lv_obj_invalidate(obj);
+        return;
+    }
+
+    if(chart->type == LV_CHART_TYPE_LINE) {
+        lv_coord_t bwidth = lv_obj_get_style_border_width(obj, LV_PART_MAIN);
+        lv_coord_t pleft = lv_obj_get_style_pad_left(obj, LV_PART_MAIN);
+        lv_coord_t x_ofs = obj->coords.x1 + pleft + bwidth - scroll_left;
+        lv_coord_t line_width = lv_obj_get_style_line_width(obj, LV_PART_ITEMS);
+        lv_coord_t point_w = lv_obj_get_style_width(obj, LV_PART_INDICATOR);
+
+        // 무효화할 영역 설정
+        lv_area_t coords;
+        lv_area_copy(&coords, &obj->coords);
+        coords.y1 -= line_width + point_w;
+        coords.y2 += line_width + point_w;
+
+        // 현재 지점만을 대상으로 무효화 영역 설정
+        coords.x1 = ((w * i) / (chart->point_cnt - 1)) + x_ofs - line_width - point_w;
+        coords.x2 = ((w * i) / (chart->point_cnt - 1)) + x_ofs + line_width + point_w;
+
+        lv_obj_invalidate_area(obj, &coords);
+    }
 }
 void custom_lv_chart_clear_all_points(lv_obj_t * obj)
 {

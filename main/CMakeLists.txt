@@ -17,6 +17,7 @@ idf_component_register(
         "ui/screens/segment_font_20size.c"
         "ui/screens/fs_test.c"
         "ui/screens/canvas_exm.c"
+        "ui/screens/seven_seg_font20.c"
     INCLUDE_DIRS
         "."
     REQUIRES spi_flash

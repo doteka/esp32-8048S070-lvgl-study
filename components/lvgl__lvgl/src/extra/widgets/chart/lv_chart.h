@@ -392,6 +392,8 @@ void lv_chart_set_next_value2(lv_obj_t * obj, lv_chart_series_t * ser, lv_coord_
 void lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t id, lv_coord_t value);
 void custom_lv_chart_set_value_by_id(lv_obj_t * obj, lv_chart_series_t * ser, uint16_t id, lv_coord_t value);
 void custom_lv_chart_clear_all_points(lv_obj_t * obj);
+static void custom_invalidate_point(lv_obj_t * obj, uint16_t i);
+
 
 /**
  * Set an individual point's x and y value of a chart's series directly based on its index

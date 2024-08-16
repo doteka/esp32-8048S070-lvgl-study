@@ -65,7 +65,7 @@ void draw_sine_wave(lv_obj_t *parent) {
 void drawing() {
     get_sine_point(x, &y);
     // lv_canvas_set_px_color(canvas, x, (int)y, lv_palette_main(LV_PALETTE_GREEN));
-    custom_lv_canvas_draw_rect(canvas, x, y, 5, 5, &rect_dsc);
+    //custom_lv_canvas_draw_rect(canvas, x, y, 5, 5, &rect_dsc);
     // lv_canvas_draw_rect(canvas, x, y, 5, 5, &rect_dsc);
 
     prev_x = x;

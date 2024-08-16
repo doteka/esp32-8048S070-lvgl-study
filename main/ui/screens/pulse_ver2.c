@@ -13,6 +13,7 @@
 #include "../ui.h"
 #include "lvgl.h"
 #include "segment_font_20size.h"
+#include "seven_seg_font20.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
@@ -42,11 +43,7 @@
 
 char *wave_title[5] = {"SineWave", "SAW_WAVE", "RECTANGLE", "NOISE"};
 
-char *buffer;
-
-int sine_wave[SINE_WAVE_LEN] = {0,5,10,15,20,25,29,33,37,40,43,45,47,48,49,50,49,48,47,45,43,40,37,33,29,25,20,15,10,5,0,-5,-10,-15,-20,-24,-29,-33,-37,-40,-43,-45,-47,-48,-49,-50,-49,-48,-47,-45,-43,-40,-37,-33,-29,-24,-20,-15,-10,-5};
-int saw_wave[SAW_WAVE_LEN] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49};
-int rectangle[RECTANGLE_LEN] = {50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50,-50};
+char *numberTostring;
 
 int selection_len;
 int *selection_wave = NULL;
@@ -68,30 +65,37 @@ int chart_x = 0;
 
 void clear_chart();
 
-void text_convert() {
+char* text_convert(char *str) {
+    static char *cvt = NULL;
+
+    if(cvt == NULL)
+        cvt = (char *)heap_caps_malloc(MAX_STR_SIZE + 1, MALLOC_CAP_SPIRAM);
+
+    strcpy(cvt, str);
     if(chart_x < DATA_SIZE-1) {
         for(int i=0;i<DATA_SIZE-chart_x-1;i++)
-            strcat(buffer, "0,");
-        strcat(buffer, "0");
+            strcat(cvt, "0,");
+        strcat(cvt, "0");
     }
+    return cvt;
 }
 
 
 void draw_chart(float y) {
-    char temp[6]; // 5자리 숫자 + NULL 문자
+    char temp[15];
     // lv_area_t area;
     // lv_obj_get_coords(chart, &area);
     // lv_obj_invalidate_area(chart, &area);
     // lv_chart_refresh(chart);
     
     custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
-
-    if(chart_x == DATA_SIZE-1)
-        snprintf(temp, sizeof(temp), "%d", (int)y);
+    // lv_chart_set_value_by_id(chart, point, chart_x, y);
+    if(chart_x < DATA_SIZE-1)
+        snprintf(temp, sizeof(temp), "%.1f,", y);
     else   
-        snprintf(temp, sizeof(temp), "%d,", (int)y);
+        snprintf(temp, sizeof(temp), "%.1f", y);
 
-    strcat(buffer, temp);
+    strcat(numberTostring, temp);
     chart_x++;
 
 }
@@ -172,7 +176,7 @@ void selection_chart(lv_timer_t *timer) {
     if(chart_run) {
         if(chart_x > DATA_SIZE-1) {
             clear_chart();
-            buffer = (char *)heap_caps_malloc(MAX_STR_SIZE + 1, MALLOC_CAP_SPIRAM);
+            numberTostring = (char *)heap_caps_malloc(MAX_STR_SIZE + 1, MALLOC_CAP_SPIRAM);
         }
 
         if(chart_x % 5 == 0) 
@@ -220,9 +224,9 @@ void clear_chart() {
     point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
     memset(backup, 0, sizeof(backup));
     
-    lv_chart_set_value_by_id(chart, point, 0, 0);
+    lv_chart_set_value_by_id(chart, point, 0, 130);
     
-    lv_chart_refresh(chart); 
+    // lv_chart_refresh(chart); 
 }
 void update_timer(void) {
     static uint32_t time = 0;
@@ -300,8 +304,9 @@ void write_file(const char *path, const char *data, bool type) { // type0 = bina
         size_t length = strlen(data);
         fwrite(data, sizeof(char), length, f);
     }
-    else 
+    else {
         fprintf(f, "%s", data);
+    }
     
     fclose(f);
     ESP_LOGI(TAG, "%s\n", data);
@@ -330,14 +335,17 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
             buffer[bytesRead] = '\0';
             ESP_LOGI(TAG, "Binary file content: %s", buffer);
             clear_chart();
-
+            strcpy(numberTostring, buffer);
+            ESP_LOGE("nTs", "%s", numberTostring);
             char *token = strtok(buffer, ",");
             int idx = 0;
+            chart_x = 0;
             while(token != NULL && idx < DATA_SIZE) {
                 backup[idx] = atoi(token);
                 lv_chart_set_value_by_id(chart, point, idx, backup[idx]);
                 token = strtok(NULL, ",");
                 idx++;
+                chart_x++;
             }
             lv_chart_refresh(chart); 
         }
@@ -346,8 +354,8 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
         while (totalBytesRead < MAX_DATA_SIZE - 1 && fgets(buffer + totalBytesRead, MAX_DATA_SIZE - totalBytesRead, f)) {
             totalBytesRead += strlen(buffer + totalBytesRead);
         }
-        buffer[totalBytesRead] = '\0'; // null terminator 추가
-        lv_textarea_set_text(textarea, buffer);
+        // buffer[totalBytesRead] = '\0'; // null terminator 추가
+        lv_textarea_set_text(textarea, text_convert(buffer));
     }
     
     free(buffer);
@@ -356,44 +364,15 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
 
 // File Save & Load Button
 void save_text_btn_click(lv_event_t *e) {
-    char temp_text[16];
-    graph_str[0] = '\0';
-
-    for(int i=0; i<DATA_SIZE; i++) {
-        snprintf(temp_text, sizeof(temp_text), "%d", backup[i]);
-
-        if(strlen(graph_str) + strlen(temp_text) +1 < sizeof(graph_str)) {
-            strcat(graph_str, temp_text);
-            if(i < DATA_SIZE-1)
-                strcat(graph_str, ",");
-        } else {
-            break;
-        }        
-    }
-    write_file("/spiffs/test.txt", graph_str, true);
+    write_file("/spiffs/test.txt", numberTostring, true);
 }
 void load_text_btn_click(lv_event_t *e) {
     lv_obj_t *textarea = lv_event_get_user_data(e);
     printf("Load text btn In\n");
-    // read_to_file("/spiflash/test.txt", textarea);
     read_file("/spiffs/test.txt", textarea, true);
 }
 void save_binary_btn_click(lv_event_t *e) {
-    char temp_text[16];
-    graph_str[0] = '\0';
-
-    for(int i=0; i<DATA_SIZE; i++) {
-        snprintf(temp_text, sizeof(temp_text), "%d", backup[i]);
-
-        if(strlen(graph_str) + strlen(temp_text) +1 < sizeof(graph_str)) {
-            strcat(graph_str, temp_text);
-            if(i < DATA_SIZE-1)
-                strcat(graph_str, ",");
-        } else {
-            break;
-        }        
-    }
-    write_file("/spiffs/test.bin", graph_str, false);
+    write_file("/spiffs/test.bin", numberTostring, false);
 }
 void load_binary_btn_click(lv_event_t *e) {
     lv_obj_t *textarea = lv_event_get_user_data(e);
@@ -418,19 +397,6 @@ void radio_selection_event(lv_event_t *e) {
 
     lv_obj_add_state(act_cb, LV_STATE_CHECKED);
     *active_id = lv_obj_get_index(act_cb);
-
-    if(*active_id == 0) {
-        selection_wave = sine_wave;
-        selection_len = SINE_WAVE_LEN;
-    } else if(*active_id == 1){
-        selection_wave = saw_wave;
-        selection_len = SAW_WAVE_LEN;
-    } else if(*active_id == 2){
-        selection_wave = rectangle;
-        selection_len = RECTANGLE_LEN;
-    } else if(*active_id == 3) {
-        selection_len = -1;
-    }
 
     ESP_LOGE("SEL", "selection : %d", selection_len);
     selection_idx = 0;
@@ -493,9 +459,8 @@ void for_text_btn_click(lv_event_t *e) {
     //         break;
     //     }        
     // }
-    text_convert();
-    lv_textarea_set_text(textarea, buffer);
-    ESP_LOGE("FS", "%s", buffer);
+    lv_textarea_set_text(textarea, text_convert(numberTostring));
+    ESP_LOGE("FS", "%s", numberTostring);
 }
 void clear_text_btn_click(lv_event_t *e)  {
     lv_obj_t *obj = lv_event_get_target(e);
@@ -574,6 +539,8 @@ void design_init() {
     lv_obj_t *textarea = lv_textarea_create(textView_left_area);
     lv_obj_set_size(textarea, LV_PCT(100), LV_PCT(80));
     lv_obj_align(textarea, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_clear_flag(textarea, LV_OBJ_FLAG_SCROLL_ELASTIC);
+    lv_obj_clear_flag(textarea, LV_OBJ_FLAG_SCROLL_MOMENTUM);
 
     // 순서 좀 바꿈 (charView 자식 객체)
     lv_obj_t *binary_save_btn = lv_btn_create(chartView_right_area);
@@ -618,7 +585,7 @@ void design_init() {
     lv_obj_set_style_border_width(textView_right_area, 0, LV_PART_MAIN);
 
     lv_style_init(&font_style);
-    lv_style_set_text_font(&font_style, &segment_font_20size);
+    lv_style_set_text_font(&font_style, &seven_seg_font20);
     // lv_style_set_text_font(&font_style, LV_FONT_DEFAULT);
 
     time_label = lv_label_create(textView_right_area);
@@ -640,7 +607,7 @@ void design_init() {
     lv_obj_center(text_save_btn_label);
 
     lv_obj_t *text_open_btn = lv_btn_create(textView_right_area);
-    lv_obj_set_size(text_open_btn, LV_PCT(100), LV_PCT(30));
+    lv_obj_set_size(text_open_btn, LV_PCT(100), LV_PCT(28));
     lv_obj_center(text_open_btn);
     lv_obj_add_event_cb(text_open_btn, load_text_btn_click, LV_EVENT_CLICKED, textarea);
     lv_obj_t *text_open_btn_label = lv_label_create(text_open_btn);
@@ -650,7 +617,7 @@ void design_init() {
     lv_obj_set_flex_align(chartView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
     lv_obj_set_flex_align(textView, LV_ALIGN_CENTER, LV_ALIGN_CENTER, LV_ALIGN_CENTER);
     // lv_timer_t *timer = lv_timer_create(selection_chart, 10, NULL);
-    buffer = (char *)heap_caps_malloc(MAX_STR_SIZE + 1, MALLOC_CAP_SPIRAM);
+    numberTostring = (char *)heap_caps_malloc(MAX_STR_SIZE + 1, MALLOC_CAP_SPIRAM);
 }
 
 void pulse_ver2_Screen_init(void) {
