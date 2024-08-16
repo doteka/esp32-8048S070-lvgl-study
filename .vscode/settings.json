@@ -27,6 +27,14 @@
         "cmath": "c",
         "compare": "c",
         "seven_seg_font20.h": "c",
-        "segment_font_20size.h": "c"
+        "segment_font_20size.h": "c",
+        "*.tcc": "c",
+        "ratio": "c",
+        "system_error": "c",
+        "functional": "c",
+        "regex": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c"
     }
 }

@@ -19,20 +19,11 @@
 #include "esp_spiffs.h"
 #include "esp_heap_caps.h"
 #include "esp_vfs_fat.h"
-#include "nvs_flash.h"
 
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/task.h"
-// #include "freertos/semphr.h"
-
-
-#define SINE_WAVE_LEN 60
-#define SAW_WAVE_LEN 50
-#define RECTANGLE_LEN 100
-#define AMPLITUDE 126
 
 #define PERIOD 200
 #define FREQUENCY (2 * M_PI / 200)
+#define AMPLITUDE 126
 
 #define TAG "SPIFFS"
 #define MAX_Y 256
@@ -45,12 +36,6 @@ char *wave_title[5] = {"SineWave", "SAW_WAVE", "RECTANGLE", "NOISE"};
 
 char *numberTostring;
 
-int selection_len;
-int *selection_wave = NULL;
-int selection_sine = 0;
-int selection_idx = 0;
-char graph_str[DATA_SIZE*5];
-int backup[DATA_SIZE]={0,};
 int radio_sel = -1;
 float y_value[DATA_SIZE];
 
@@ -59,8 +44,6 @@ lv_obj_t *chart;
 lv_style_t font_style;
 lv_obj_t *time_label;
 lv_chart_series_t * point;
-lv_obj_t *line;
-lv_point_t line_points[DATA_SIZE];
 int chart_x = 0;
 
 void clear_chart();
@@ -83,13 +66,8 @@ char* text_convert(char *str) {
 
 void draw_chart(float y) {
     char temp[15];
-    // lv_area_t area;
-    // lv_obj_get_coords(chart, &area);
-    // lv_obj_invalidate_area(chart, &area);
-    // lv_chart_refresh(chart);
     
     custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
-    // lv_chart_set_value_by_id(chart, point, chart_x, y);
     if(chart_x < DATA_SIZE-1)
         snprintf(temp, sizeof(temp), "%.1f,", y);
     else   
@@ -101,78 +79,47 @@ void draw_chart(float y) {
 }
 void draw_sine_chart() {
     static float y;
-    static int refresh_count = 0;
-    if(chart_x % 600)
-        chart_x %= 600;
 
     y = (AMPLITUDE * sin(FREQUENCY * chart_x)) + 130;
     ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
 
     draw_chart(y);
-    // lv_chart_set_value_by_id(chart, point, chart_x, y);
-    // custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
-
-    // chart_x++;
-
 }
 
 void draw_saw_wave_chart() {
     static float y;
-    static int refresh_count = 0;
-    if(chart_x % 600)
-        chart_x %= 600;
     
     y = ((2.0 * (float)(chart_x % PERIOD) / (float)PERIOD - 1.0) + 1.0) * (256.0 - 126.0) / 2.0 + 126.0;
     ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
-
     draw_chart(y);
-
-    // lv_chart_set_value_by_id(chart, point, chart_x, y);
-    // custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
-
-    // chart_x++;
 }
 
 void draw_rectangle_chart() {
     static float y;
-    if(chart_x % 600)
-        chart_x %= 600;
 
-    // 사각파 계산식: x가 PERIOD를 기준으로 최소값과 최대값을 교차
     if ((chart_x % PERIOD) < (PERIOD / 2)) {
-        y = MIN_Y;  // 사각파의 최대값
+        y = MIN_Y;
     } else {
-        y = MAX_Y;  // 사각파의 최소값
+        y = MAX_Y;
     }
 
     ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
 
     draw_chart(y);
-
-    // lv_chart_set_value_by_id(chart, point, chart_x, y);
-    // custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
-
-    // chart_x++;
 }
 
 void draw_noise_chart() {
     static int y;
-    if(chart_x % 600)
-        chart_x %= 600;
+
     y = MIN_Y + rand() % (MAX_Y - MIN_Y + 1);
-    // lv_chart_set_value_by_id(chart, point, chart_x, y);
-    // custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
+
     ESP_LOGI("chart", "x : %d, y : %d", chart_x, y);
-    // chart_x++;
     draw_chart(y);
 }
 
 
 
 void selection_chart(lv_timer_t *timer) {
-    static uint16_t index = 0;
-    int random;
-
     if(chart_run) {
         if(chart_x > DATA_SIZE-1) {
             clear_chart();
@@ -181,6 +128,9 @@ void selection_chart(lv_timer_t *timer) {
 
         if(chart_x % 5 == 0) 
             lv_chart_refresh(chart);
+        
+        if(chart_x % DATA_SIZE)
+            chart_x %= DATA_SIZE;
 
         if(radio_sel == 0)
             draw_sine_chart();
@@ -191,8 +141,6 @@ void selection_chart(lv_timer_t *timer) {
         else if(radio_sel == 3)
             draw_noise_chart();
     }
-    
-
 }
 
 void clear_chart() {
@@ -205,14 +153,12 @@ void clear_chart() {
 
     lv_style_init(&style_chart_serires);
     lv_style_set_line_width(&style_chart_serires, 2);
-    //lv_style_set_radius(&style_chart_serires, 5);
 
     lv_obj_t *obj = lv_obj_get_parent(chart);
     lv_obj_del(chart);
     chart = lv_chart_create(obj);
     lv_obj_set_style_pad_all(chart, 3, LV_PART_MAIN);
-    // lv_obj_set_size(chart, LV_PCT(100), LV_PCT(90));
-    lv_obj_set_size(chart, 600, 240);
+    lv_obj_set_size(chart, DATA_SIZE, 240);
     lv_obj_align(chart, LV_ALIGN_TOP_LEFT, 3, 3);
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(chart, DATA_SIZE);
@@ -222,7 +168,6 @@ void clear_chart() {
     lv_obj_add_style(chart, &style_chart_serires, LV_PART_ITEMS | LV_STATE_DEFAULT);
     lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
     point = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
-    memset(backup, 0, sizeof(backup));
     
     lv_chart_set_value_by_id(chart, point, 0, 130);
     
@@ -270,7 +215,6 @@ void init_spiffs() {
     };
 
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    // esp_err_t ret = ESP_OK;
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
             ESP_LOGE(TAG, "Failed to mount or format filesystem");
@@ -339,10 +283,12 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
             ESP_LOGE("nTs", "%s", numberTostring);
             char *token = strtok(buffer, ",");
             int idx = 0;
+            float value;
             chart_x = 0;
+
             while(token != NULL && idx < DATA_SIZE) {
-                backup[idx] = atoi(token);
-                lv_chart_set_value_by_id(chart, point, idx, backup[idx]);
+                value = atoi(token);
+                lv_chart_set_value_by_id(chart, point, idx, value);
                 token = strtok(NULL, ",");
                 idx++;
                 chart_x++;
@@ -354,7 +300,6 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
         while (totalBytesRead < MAX_DATA_SIZE - 1 && fgets(buffer + totalBytesRead, MAX_DATA_SIZE - totalBytesRead, f)) {
             totalBytesRead += strlen(buffer + totalBytesRead);
         }
-        // buffer[totalBytesRead] = '\0'; // null terminator 추가
         lv_textarea_set_text(textarea, text_convert(buffer));
     }
     
@@ -397,9 +342,6 @@ void radio_selection_event(lv_event_t *e) {
 
     lv_obj_add_state(act_cb, LV_STATE_CHECKED);
     *active_id = lv_obj_get_index(act_cb);
-
-    ESP_LOGE("SEL", "selection : %d", selection_len);
-    selection_idx = 0;
     ESP_LOGI("RADIO","active id: %d", (int)*active_id);
 }
 void make_radio_btn(lv_obj_t *screen, const char *title, lv_style_t *style_radio, lv_style_t *style_radio_chk) {
@@ -437,28 +379,10 @@ void start_btn_click(lv_event_t *e) {
 }
 
 void for_text_btn_click(lv_event_t *e) {
-    // char temp_text[16];
 
     lv_obj_t *obj = lv_event_get_target(e);
     lv_obj_t *textarea = lv_event_get_user_data(e);
 
-    // graph_str[0] = '\0';
-
-    // for(int i=0; i<DATA_SIZE; i++) {
-    //     if(point->y_points[i] == 32767) 
-    //         snprintf(temp_text, sizeof(temp_text), "%d", 0);
-    //     else
-    //         snprintf(temp_text, sizeof(temp_text), "%d", point->y_points[i]);
-        
-
-    //     if(strlen(graph_str) + strlen(temp_text) +1 < sizeof(graph_str)) {
-    //         strcat(graph_str, temp_text);
-    //         if(i < DATA_SIZE-1)
-    //             strcat(graph_str, ",");
-    //     } else {
-    //         break;
-    //     }        
-    // }
     lv_textarea_set_text(textarea, text_convert(numberTostring));
     ESP_LOGE("FS", "%s", numberTostring);
 }
