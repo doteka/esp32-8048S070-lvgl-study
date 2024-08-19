@@ -254,7 +254,6 @@ void write_file(const char *path, const char *data, bool type) { // type0 = bina
     fclose(f);
     ESP_LOGI(TAG, "%s\n", data);
     ESP_LOGI(TAG, "File written successfully");
-    lv_obj_invalidate(pulse_ver2_init_Screen);
 }
 void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = binary, type1 = text
     FILE *f = fopen(path, type ? "r" : "rb");
