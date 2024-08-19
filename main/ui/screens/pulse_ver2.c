@@ -75,7 +75,6 @@ void draw_chart(float y) {
 
     strcat(numberTostring, temp);
     chart_x++;
-
 }
 void draw_sine_chart() {
     static float y;
@@ -282,15 +281,13 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
             strcpy(numberTostring, buffer);
             ESP_LOGE("nTs", "%s", numberTostring);
             char *token = strtok(buffer, ",");
-            int idx = 0;
             float value;
             chart_x = 0;
 
-            while(token != NULL && idx < DATA_SIZE) {
+            while(token != NULL && chart_x < DATA_SIZE) {
                 value = atoi(token);
-                lv_chart_set_value_by_id(chart, point, idx, value);
+                lv_chart_set_value_by_id(chart, point, chart_x, value);
                 token = strtok(NULL, ",");
-                idx++;
                 chart_x++;
             }
             lv_chart_refresh(chart); 
@@ -482,7 +479,6 @@ void design_init() {
     lv_obj_t *binary_open_btn_label = lv_label_create(binary_open_btn);
     lv_label_set_text(binary_open_btn_label, "Open Binary");
     lv_obj_center(binary_open_btn_label);
-
 
 
     lv_obj_t *for_text_btn = lv_btn_create(textView_left_area);
