@@ -19,7 +19,7 @@
 #include "esp_spiffs.h"
 #include "esp_heap_caps.h"
 #include "esp_vfs_fat.h"
-
+#include "esp_timer.h"
 
 #define PERIOD 200
 #define FREQUENCY (2 * M_PI / 200)
@@ -64,37 +64,41 @@ char* text_convert(char *str) {
 }
 
 
-void draw_chart(float y) {
+void draw_chart(int y) {
     char temp[15];
     
     custom_lv_chart_set_value_by_id(chart, point, chart_x, y);
     if(chart_x < DATA_SIZE-1)
-        snprintf(temp, sizeof(temp), "%.1f,", y);
+        snprintf(temp, sizeof(temp), "%d,", y);
     else   
-        snprintf(temp, sizeof(temp), "%.1f", y);
+        snprintf(temp, sizeof(temp), "%d", y);
 
     strcat(numberTostring, temp);
     chart_x++;
 }
 void draw_sine_chart() {
-    static float y;
+    // static float y;
+    static int y;
 
-    y = (AMPLITUDE * sin(FREQUENCY * chart_x)) + 130;
-    ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
+    y = (int)((AMPLITUDE * sin(FREQUENCY * chart_x)) + 130);
+    // ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
 
     draw_chart(y);
 }
 
 void draw_saw_wave_chart() {
-    static float y;
+    static float normalized;
+    static int y;
     
-    y = ((2.0 * (float)(chart_x % PERIOD) / (float)PERIOD - 1.0) + 1.0) * (256.0 - 126.0) / 2.0 + 126.0;
-    ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
+    normalized = (float)(chart_x % PERIOD) / (float)PERIOD;
+    y = (int)(MIN_Y + normalized * (MAX_Y - MIN_Y));
+    // ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
     draw_chart(y);
 }
 
 void draw_rectangle_chart() {
-    static float y;
+    // static float y;
+    static int y;
 
     if ((chart_x % PERIOD) < (PERIOD / 2)) {
         y = MIN_Y;
@@ -102,7 +106,7 @@ void draw_rectangle_chart() {
         y = MAX_Y;
     }
 
-    ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
+    // ESP_LOGI("chart", "x : %d, y : %.5f", chart_x, y);
 
     draw_chart(y);
 }
@@ -172,7 +176,7 @@ void clear_chart() {
     
     // lv_chart_refresh(chart); 
 }
-void update_timer(void) {
+/* void update_timer(void) {
     static uint32_t time = 0;
     char time_str[16];
     if(chart_run) {
@@ -187,7 +191,43 @@ void update_timer(void) {
         snprintf(time_str, sizeof(time_str), "%02lu:%02lu:%02lu:%02lu", hours, minutes, seconds, milliseconds/10);
         lv_label_set_text(time_label, time_str);
     }
+} */
+
+void update_timer(void) {
+    static int64_t start_time = 0;
+    static uint32_t displayed_time = 0;
+
+    if(chart_run) {
+        int64_t current_time = esp_timer_get_time();
+
+        if(start_time == 0)
+            start_time = current_time-100;
+        ESP_LOGE("S_TIMER", "%lld", start_time);
+
+        ESP_LOGE("TIMER", "%lld", current_time);
+
+
+        int64_t elapsed_time = (current_time - start_time) / 1000;
+        // while (displayed_time < elapsed_time) { 
+        while (elapsed_time >= displayed_time + 100 ) {
+            displayed_time += 100;
+        
+            uint32_t total_seconds = displayed_time / 1000;
+            uint32_t milliseconds = displayed_time % 1000;
+            uint32_t seconds = total_seconds % 60;
+            uint32_t minutes = (total_seconds / 60) % 60;
+            uint32_t hours = (total_seconds / 3600);
+
+            char time_str[32];
+            snprintf(time_str, sizeof(time_str), "%02lu:%02lu:%02lu:%01lu", hours, minutes, seconds, milliseconds);
+            lv_label_set_text(time_label, time_str);
+        }
+    } else {
+        if(start_time != 0)
+            start_time = 0;
+    }
 }
+
 void print_memory_usage()
 {
     ESP_LOGI(TAG, "System Memory Info:");
@@ -296,7 +336,8 @@ void read_file(const char *path, lv_obj_t *textarea, bool type) { // type0 = bin
         while (totalBytesRead < MAX_DATA_SIZE - 1 && fgets(buffer + totalBytesRead, MAX_DATA_SIZE - totalBytesRead, f)) {
             totalBytesRead += strlen(buffer + totalBytesRead);
         }
-        lv_textarea_set_text(textarea, text_convert(buffer));
+        // lv_textarea_set_text(textarea, text_convert(buffer));
+        lv_textarea_set_text(textarea, buffer);
     }
     
     free(buffer);
@@ -368,7 +409,7 @@ void start_btn_click(lv_event_t *e) {
     else {
         lv_label_set_text(label, "Stop");
         if(chart_timer == NULL) {
-            timer_timer = lv_timer_create(timer_timer_callback, 100, NULL);
+            timer_timer = lv_timer_create(timer_timer_callback, 50, NULL);
             chart_timer = lv_timer_create(selection_chart, 10, NULL);
         }chart_run = true;      
     }
@@ -379,7 +420,8 @@ void for_text_btn_click(lv_event_t *e) {
     lv_obj_t *obj = lv_event_get_target(e);
     lv_obj_t *textarea = lv_event_get_user_data(e);
 
-    lv_textarea_set_text(textarea, text_convert(numberTostring));
+    // lv_textarea_set_text(textarea, text_convert(numberTostring));
+    lv_textarea_set_text(textarea, numberTostring);
     ESP_LOGE("FS", "%s", numberTostring);
 }
 void clear_text_btn_click(lv_event_t *e)  {
